@@ -1,5 +1,6 @@
 defaults:
   lakefs_repo: data-raw
+  lakefs_processed_repo: data-processed
   lakefs_branch: main
   lakefs_commit_message: periodic download
   mariadb_database: episerve-raw-data
