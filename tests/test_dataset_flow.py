@@ -15,17 +15,15 @@ SAMPLE_DF = pd.DataFrame(
     }
 )
 
-
 SAMPLE_FDO = {"@id": "Q123", "@type": "DigitalObject"}
 
 
 def test_run_dataset_runs_steps_in_order():
-    """run_dataset should save locally, create FDO metadata, upload to lakeFS, then store in MariaDB."""
+    """run_dataset should download, commit to lakeFS with FDO metadata, then parse and store in MariaDB."""
     call_order = []
 
     with (
-        patch("flow.dataset_flow.download_tsv", return_value=SAMPLE_DF),
-        patch("flow.dataset_flow.save_locally", side_effect=lambda df, path: call_order.append(("save", path))),
+        patch("flow.dataset_flow.download_file", side_effect=lambda url, path: call_order.append(("download", url, path))),
         patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
         patch(
             "flow.dataset_flow.commit_to_lakefs",
@@ -33,6 +31,7 @@ def test_run_dataset_runs_steps_in_order():
                 ("lakefs", path, repo, branch, object_path, commit_message, fdo)
             ),
         ),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF, side_effect=lambda path, delim, skiprows=0: call_order.append(("parse", path)) or SAMPLE_DF),
         patch(
             "flow.dataset_flow.store_to_mariadb",
             side_effect=lambda df, table, database, primary_key=None: call_order.append(("mariadb", table, database, primary_key)),
@@ -52,8 +51,9 @@ def test_run_dataset_runs_steps_in_order():
         )
 
     assert call_order == [
-        ("save", "/tmp/grippeweb.tsv"),
+        ("download", "https://example.com/data.tsv", "/tmp/grippeweb.tsv"),
         ("lakefs", "/tmp/grippeweb.tsv", "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
+        ("parse", "/tmp/grippeweb.tsv"),
         ("mariadb", "grippeweb", "test", None),
     ]
 

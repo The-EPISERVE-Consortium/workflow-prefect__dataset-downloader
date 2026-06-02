@@ -1,34 +1,30 @@
 """Unit tests for tasks/download_tsv.py."""
 
+from pathlib import Path
 from unittest.mock import patch
 
-import pandas as pd
-
-from tasks.download_tsv import download_tsv
+from tasks.download_tsv import download_file
 
 
-SAMPLE_DF = pd.DataFrame(
-    {
-        "Kalenderwoche": ["2024-W01", "2024-W02"],
-        "Inzidenz": [12.3, 14.7],
-    }
-)
+def test_download_file_saves_raw_bytes(tmp_path: Path):
+    """download_file should call urlretrieve with the given URL and local path."""
+    dest = str(tmp_path / "data.csv")
+
+    with patch("tasks.download_tsv.urllib.request.urlretrieve") as mock_retrieve:
+        download_file.fn("https://example.com/data.csv", dest)
+
+    mock_retrieve.assert_called_once_with("https://example.com/data.csv", dest)
 
 
-def test_download_tsv_returns_dataframe():
-    """download_tsv should return the DataFrame produced by pd.read_csv."""
-    with patch("tasks.download_tsv.pd.read_csv", return_value=SAMPLE_DF) as mock_read:
-        result = download_tsv.fn("https://example.com/data.tsv", "\t")
+def test_download_file_preserves_original_format(tmp_path: Path):
+    """download_file should write the raw response bytes without conversion."""
+    dest = tmp_path / "data.csv"
+    raw = b"col1,col2\n1,2\n3,4\n"
 
-    mock_read.assert_called_once_with("https://example.com/data.tsv", sep="\t", skiprows=0)
-    assert isinstance(result, pd.DataFrame)
-    assert list(result.columns) == ["Kalenderwoche", "Inzidenz"]
-    assert len(result) == 2
+    def fake_urlretrieve(url, path):
+        Path(path).write_bytes(raw)
 
+    with patch("tasks.download_tsv.urllib.request.urlretrieve", side_effect=fake_urlretrieve):
+        download_file.fn("https://example.com/data.csv", str(dest))
 
-def test_download_tsv_passes_skiprows():
-    """download_tsv should forward skiprows to pd.read_csv."""
-    with patch("tasks.download_tsv.pd.read_csv", return_value=SAMPLE_DF) as mock_read:
-        download_tsv.fn("https://example.com/data.csv", ",", skiprows=3)
-
-    mock_read.assert_called_once_with("https://example.com/data.csv", sep=",", skiprows=3)
+    assert dest.read_bytes() == raw

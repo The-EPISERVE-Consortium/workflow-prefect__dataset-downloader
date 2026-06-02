@@ -4,32 +4,36 @@ from pathlib import Path
 
 import pandas as pd
 
-from tasks.save_locally import save_locally
+from tasks.save_locally import parse_dataset
 
 
-SAMPLE_DF = pd.DataFrame(
-    {
-        "Kalenderwoche": ["2024-W01", "2024-W02"],
-        "Inzidenz": [12.3, 14.7],
-    }
-)
+def test_parse_dataset_reads_tsv(tmp_path: Path):
+    """parse_dataset should read a TSV file into a DataFrame."""
+    src = tmp_path / "data.tsv"
+    src.write_text("Kalenderwoche\tInzidenz\n2024-W01\t12.3\n2024-W02\t14.7\n", encoding="utf-8")
+
+    result = parse_dataset.fn(str(src), "\t")
+
+    assert list(result.columns) == ["Kalenderwoche", "Inzidenz"]
+    assert len(result) == 2
 
 
-def test_save_locally_creates_nonempty_file(tmp_path: Path):
-    """save_locally should write a non-empty TSV file at the given path."""
-    dest = tmp_path / "output.tsv"
+def test_parse_dataset_reads_csv(tmp_path: Path):
+    """parse_dataset should read a CSV file into a DataFrame without conversion."""
+    src = tmp_path / "data.csv"
+    src.write_text("col1,col2\n1,2\n3,4\n", encoding="utf-8")
 
-    save_locally.fn(SAMPLE_DF, str(dest))
+    result = parse_dataset.fn(str(src), ",")
 
-    assert dest.exists(), "Output file was not created"
-    assert dest.stat().st_size > 0, "Output file is empty"
+    assert list(result.columns) == ["col1", "col2"]
+    assert len(result) == 2
 
 
-def test_save_locally_content_is_valid_tsv(tmp_path: Path):
-    """save_locally should write content that can be read back as a TSV."""
-    dest = tmp_path / "output.tsv"
+def test_parse_dataset_passes_skiprows(tmp_path: Path):
+    """parse_dataset should skip the given number of header rows."""
+    src = tmp_path / "data.csv"
+    src.write_text("metadata\ncol1,col2\n1,2\n", encoding="utf-8")
 
-    save_locally.fn(SAMPLE_DF, str(dest))
+    result = parse_dataset.fn(str(src), ",", skiprows=1)
 
-    reloaded = pd.read_csv(dest, sep="\t")
-    pd.testing.assert_frame_equal(reloaded, SAMPLE_DF)
+    assert list(result.columns) == ["col1", "col2"]

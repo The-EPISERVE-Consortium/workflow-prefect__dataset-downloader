@@ -1,10 +1,10 @@
-"""Prefect task for saving a downloaded TSV to local storage."""
+"""Prefect task for parsing a downloaded dataset file into a DataFrame."""
 
 import pandas as pd
 from prefect import task
 
 
 @task
-def save_locally(df: pd.DataFrame, path: str) -> None:
-    """Save a DataFrame to the local filesystem as a TSV file."""
-    df.to_csv(path, sep="\t", index=False)
+def parse_dataset(path: str, delimiter: str, skiprows: int = 0) -> pd.DataFrame:
+    """Read a delimited file from the local filesystem into a DataFrame."""
+    return pd.read_csv(path, sep=delimiter, skiprows=skiprows)

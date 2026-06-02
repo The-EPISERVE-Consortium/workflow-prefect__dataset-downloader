@@ -1,17 +1,16 @@
-"""Prefect task for downloading a delimited text dataset into a DataFrame."""
+"""Prefect task for downloading a dataset file to local storage."""
 
-import pandas as pd
+import urllib.request
+
 from prefect import task
 
 from tasks._logging import get_logger
 
 
 @task
-def download_tsv(url: str, source_delimiter: str, skiprows: int = 0) -> pd.DataFrame:
-    """Download a delimited file from the given URL and return it as a DataFrame."""
+def download_file(url: str, local_path: str) -> None:
+    """Download a file from the given URL and save it to local_path as-is."""
     logger = get_logger(__name__)
-    logger.info("Start download %s", url)
-    df = pd.read_csv(url, sep=source_delimiter, skiprows=skiprows)
-    size_kb = len(df.to_csv(sep="\t", index=False).encode()) / 1024
-    logger.info("Download done. Downloaded %.1f KB", size_kb)
-    return df
+    logger.info("Downloading %s to %s", url, local_path)
+    urllib.request.urlretrieve(url, local_path)
+    logger.info("Download complete")

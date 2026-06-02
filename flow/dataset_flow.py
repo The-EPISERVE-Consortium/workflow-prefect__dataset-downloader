@@ -1,11 +1,11 @@
-"""Generic Prefect flow for downloading, storing, and publishing TSV datasets."""
+"""Generic Prefect flow for downloading, storing, and publishing datasets."""
 
 from prefect import flow
 
 from tasks.commit_to_lakefs import commit_to_lakefs
 from tasks.create_fdo_metadata import create_fdo_metadata
-from tasks.download_tsv import download_tsv
-from tasks.save_locally import save_locally
+from tasks.download_tsv import download_file
+from tasks.save_locally import parse_dataset
 from tasks.store_to_mariadb import store_to_mariadb
 
 
@@ -35,7 +35,7 @@ def run_dataset(
     source_skiprows: int = 0,
     mariadb_primary_key: str | None = None,
 ) -> None:
-    """Fetch a TSV dataset, persist it locally, and publish it downstream."""
+    """Download a dataset, commit it to lakeFS with FDO metadata, then load it into MariaDB."""
     _validate_required_parameters(
         {
             "dataset_name": dataset_name,
@@ -50,8 +50,8 @@ def run_dataset(
             "mariadb_database": mariadb_database,
         }
     )
-    df = download_tsv(source_url, source_delimiter, source_skiprows)
-    save_locally(df, local_path)
+    download_file(source_url, local_path)
     fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path)
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
+    df = parse_dataset(local_path, source_delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
