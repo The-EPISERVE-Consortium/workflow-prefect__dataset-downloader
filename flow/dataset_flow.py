@@ -77,4 +77,4 @@ def run_dataset(
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
-    convert_to_parquet(df, fdo["@id"], lakefs_processed_repo)
+    convert_to_parquet(df, fdo["@id"], fdo, lakefs_processed_repo)

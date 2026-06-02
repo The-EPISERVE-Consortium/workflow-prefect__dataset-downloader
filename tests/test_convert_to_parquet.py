@@ -40,55 +40,70 @@ def test_shard_qid_rejects_non_digit_suffix():
 
 # --- convert_to_parquet ---
 
-def _make_mock_branch(object_path: str, has_changes: bool = True):
+SAMPLE_FDO = {"@id": "Q1234567890123", "@type": "DigitalObject"}
+
+
+def _make_mock_branch(has_changes: bool = True):
     mock_repo = MagicMock()
     mock_branch = MagicMock()
-    mock_object = MagicMock()
     mock_repo.branch.return_value = mock_branch
-    mock_branch.object.return_value = mock_object
-    mock_branch.uncommitted.return_value = [SimpleNamespace(path=object_path)] if has_changes else []
+    mock_branch.uncommitted.return_value = [SimpleNamespace(path="some/path")] if has_changes else []
     mock_branch.commit.return_value = SimpleNamespace(id="commit-id")
-    return mock_repo, mock_branch, mock_object
+    uploaded = {}
+
+    def fake_object(path):
+        obj = MagicMock()
+        obj.upload.side_effect = lambda **kwargs: uploaded.update({path: kwargs})
+        return obj
+
+    mock_branch.object.side_effect = fake_object
+    return mock_repo, mock_branch, uploaded
 
 
 def test_convert_to_parquet_uploads_valid_parquet():
     qid = "Q1234567890123"
-    expected_path = "12/34/56/Q1234567890123.parquet"
-    mock_repo, mock_branch, mock_object = _make_mock_branch(expected_path)
-
-    uploaded = {}
-
-    def capture_upload(**kwargs):
-        uploaded.update(kwargs)
-
-    mock_object.upload.side_effect = capture_upload
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
 
-    mock_branch.object.assert_called_once_with(expected_path)
-    assert uploaded["content_type"] == "application/vnd.apache.parquet"
-
-    table = pq.read_table(io.BytesIO(uploaded["data"]))
+    parquet_path = "12/34/56/Q1234567890123.parquet"
+    assert parquet_path in uploaded
+    assert uploaded[parquet_path]["content_type"] == "application/vnd.apache.parquet"
+    table = pq.read_table(io.BytesIO(uploaded[parquet_path]["data"]))
     assert table.column_names == ["col1", "col2"]
     assert table.num_rows == 2
 
 
-def test_convert_to_parquet_commits_with_qid_message():
+def test_convert_to_parquet_uploads_fdo_metadata():
+    import json
     qid = "Q1234567890123"
-    mock_repo, mock_branch, _ = _make_mock_branch("12/34/56/Q1234567890123.parquet")
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
+
+    fdo_path = "12/34/56/Q1234567890123.fdo.json"
+    assert fdo_path in uploaded
+    assert uploaded[fdo_path]["content_type"] == "application/json"
+    assert json.loads(uploaded[fdo_path]["data"]) == SAMPLE_FDO
+
+
+def test_convert_to_parquet_commits_with_qid_message():
+    qid = "Q1234567890123"
+    mock_repo, mock_branch, _ = _make_mock_branch()
+
+    with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
 
     mock_branch.commit.assert_called_once_with(message="Parquet conversion of Q1234567890123")
 
 
 def test_convert_to_parquet_skips_commit_when_no_changes():
     qid = "Q1234567890123"
-    mock_repo, mock_branch, _ = _make_mock_branch("12/34/56/Q1234567890123.parquet", has_changes=False)
+    mock_repo, mock_branch, _ = _make_mock_branch(has_changes=False)
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
 
     mock_branch.commit.assert_not_called()

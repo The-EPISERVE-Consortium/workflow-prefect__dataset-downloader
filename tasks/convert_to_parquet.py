@@ -1,6 +1,7 @@
 """Prefect task for converting a dataset DataFrame to Parquet and storing it in lakeFS."""
 
 import io
+import json
 
 import pandas as pd
 from prefect import task
@@ -32,21 +33,28 @@ def shard_qid(qid: str) -> str:
 def convert_to_parquet(
     df: pd.DataFrame,
     qid: str,
+    fdo_metadata: dict,
     lakefs_repo: str,
     lakefs_branch: str = "main",
 ) -> None:
-    """Convert a DataFrame to Parquet and commit it to the processed lakeFS repo."""
+    """Convert a DataFrame to Parquet and commit it alongside its FDO metadata to the processed lakeFS repo."""
     logger = get_logger(__name__)
 
-    object_path = shard_qid(qid) + ".parquet"
+    shard_prefix = shard_qid(qid)
+    parquet_path = shard_prefix + ".parquet"
+    fdo_path = shard_prefix + ".fdo.json"
 
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     parquet_bytes = buf.getvalue()
 
     branch = _get_lakefs_repository(lakefs_repo).branch(lakefs_branch)
-    logger.info("Uploading parquet to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, object_path)
-    branch.object(object_path).upload(data=parquet_bytes, content_type="application/vnd.apache.parquet")
+
+    logger.info("Uploading parquet to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, parquet_path)
+    branch.object(parquet_path).upload(data=parquet_bytes, content_type="application/vnd.apache.parquet")
+
+    logger.info("Uploading FDO metadata to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, fdo_path)
+    branch.object(fdo_path).upload(data=json.dumps(fdo_metadata, indent=2).encode(), content_type="application/json")
 
     changes = list(branch.uncommitted())
     if not changes:
