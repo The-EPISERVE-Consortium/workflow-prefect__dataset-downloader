@@ -1,15 +1,16 @@
 """Prefect task for creating an FDO (FAIR Digital Object) metadata record."""
 
-import random
-import time
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
 from prefect import task
 
 
-def mint_qid() -> str:
-    return f"Q{int(time.time())}{random.randint(0, 999):03d}"
+def mint_qid(source_url: str) -> str:
+    filename = Path(source_url.split("?")[0]).name
+    digest = hashlib.sha256(filename.encode()).hexdigest()
+    return f"Q{int(digest, 16) % 10**13:013d}"
 
 
 def _media_type(object_path: str) -> str:
@@ -24,7 +25,7 @@ def _media_type(object_path: str) -> str:
 @task
 def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: str) -> dict:
     """Build an FDO metadata record for the downloaded dataset."""
-    qid = mint_qid()
+    qid = mint_qid(source_url)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     filename = Path(lakefs_object_path).name
 
