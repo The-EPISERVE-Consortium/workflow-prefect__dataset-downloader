@@ -17,6 +17,7 @@ REGISTRY_PATH = Path(__file__).with_name("datasets.yaml")
 REQUIRED_PARAMETERS = {
     "source_url",
     "lakefs_repo",
+    "lakefs_processed_repo",
     "lakefs_branch",
     "lakefs_object_path",
     "lakefs_commit_message",

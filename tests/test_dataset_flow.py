@@ -40,6 +40,10 @@ def test_run_dataset_runs_steps_in_order():
             "flow.dataset_flow.store_to_mariadb",
             side_effect=lambda df, table, database, primary_key=None: call_order.append(("mariadb", table, database, primary_key)),
         ),
+        patch(
+            "flow.dataset_flow.convert_to_parquet",
+            side_effect=lambda df, qid, repo, **kw: call_order.append(("parquet", qid, repo)),
+        ),
     ):
         run_dataset(
             dataset_name="grippeweb",
@@ -50,6 +54,7 @@ def test_run_dataset_runs_steps_in_order():
             lakefs_commit_message="new version from RKI",
             mariadb_table="grippeweb",
             mariadb_database="test",
+            lakefs_processed_repo="data-processed",
         )
 
     assert call_order == [
@@ -57,6 +62,7 @@ def test_run_dataset_runs_steps_in_order():
         ("lakefs", EXPECTED_LOCAL_PATH, "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
         ("parse", EXPECTED_LOCAL_PATH, "\t"),
         ("mariadb", "grippeweb", "test", None),
+        ("parquet", SAMPLE_FDO["@id"], "data-processed"),
     ]
 
 
@@ -72,6 +78,7 @@ def test_run_dataset_rejects_blank_required_parameters():
             lakefs_commit_message="new version from RKI",
             mariadb_table="grippeweb",
             mariadb_database="test",
+            lakefs_processed_repo="data-processed",
         )
 
 

@@ -1,5 +1,6 @@
 prefect>=3.7.1
 pandas
+pyarrow
 pymysql
 lakefs
 pyyaml

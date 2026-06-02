@@ -6,6 +6,7 @@ from pathlib import Path
 from prefect import flow
 
 from tasks.commit_to_lakefs import commit_to_lakefs
+from tasks.convert_to_parquet import convert_to_parquet
 from tasks.create_fdo_metadata import create_fdo_metadata
 from tasks.download_tsv import download_file
 from tasks.save_locally import parse_dataset
@@ -50,6 +51,7 @@ def run_dataset(
     lakefs_commit_message: str,
     mariadb_table: str,
     mariadb_database: str,
+    lakefs_processed_repo: str,
     source_delimiter: str | None = None,
     source_skiprows: int = 0,
     mariadb_primary_key: str | None = None,
@@ -65,6 +67,7 @@ def run_dataset(
             "lakefs_commit_message": lakefs_commit_message,
             "mariadb_table": mariadb_table,
             "mariadb_database": mariadb_database,
+            "lakefs_processed_repo": lakefs_processed_repo,
         }
     )
     delimiter = _resolve_delimiter(lakefs_object_path, source_delimiter)
@@ -74,3 +77,4 @@ def run_dataset(
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
+    convert_to_parquet(df, fdo["@id"], lakefs_processed_repo)
