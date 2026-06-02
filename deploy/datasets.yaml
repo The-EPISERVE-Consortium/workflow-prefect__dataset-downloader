@@ -1,7 +1,7 @@
 defaults:
   lakefs_repo: data-raw
   lakefs_branch: main
-  lakefs_commit_message: new version from RKI
+  lakefs_commit_message: periodic download
   mariadb_database: episerve-raw-data
   run_daily: true
 datasets:
