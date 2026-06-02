@@ -10,7 +10,6 @@ datasets:
     deployment_name: download__grippeweb
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/GrippeWeb_Daten_des_Wochenberichts/refs/heads/main/GrippeWeb_Daten_des_Wochenberichts.tsv
-      source_delimiter: "\t"
       lakefs_object_path: incidence/influenza/RKI__grippeweb.tsv
       mariadb_table: grippeweb
   corona_incidence_germany:
@@ -18,7 +17,6 @@ datasets:
     deployment_name: download__corona_incidence_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Deutschland.csv
-      source_delimiter: ","
       lakefs_object_path: incidence/covid/RKI__covid_germany.csv
       mariadb_table: corona_incidence_germany
   corona_incidence_states:
@@ -26,7 +24,6 @@ datasets:
     deployment_name: download__corona_incidence_states
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
-      source_delimiter: ","
       lakefs_object_path: incidence/covid/RKI__covid_states.csv
       mariadb_table: corona_incidence_states
   wastewater_surveillance_aggregate:
@@ -34,7 +31,6 @@ datasets:
     deployment_name: download__wastewater_surveillance_aggregate
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_aggregierte_kurve.tsv
-      source_delimiter: "\t"
       lakefs_object_path: wastewater/RKI__wastewater_surveillance_aggregate.tsv
       mariadb_table: wastewater_surveillance_aggregate
   notaufnahme_surveillance:
@@ -42,7 +38,6 @@ datasets:
     deployment_name: download__notaufnahme_surveillance
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Daten_der_Notaufnahmesurveillance/refs/heads/main/Notaufnahmesurveillance_Zeitreihen_Syndrome.tsv
-      source_delimiter: "\t"
       lakefs_object_path: surveillance/emergency_dept/RKI__notaufnahme_surveillance.tsv
       mariadb_table: notaufnahme_surveillance
   weather_berlin_daily:
@@ -50,7 +45,6 @@ datasets:
     deployment_name: download__weather_berlin_daily
     parameters:
       source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&past_days=10&format=csv&timezone=Europe%2FBerlin"
-      source_delimiter: ","
       source_skiprows: 3
       lakefs_object_path: climate/temperature/open-meteo__weather_berlin_daily.csv
       lakefs_commit_message: new version from Open-Meteo

@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from flow.dataset_flow import run_dataset
+from flow.dataset_flow import run_dataset, _resolve_delimiter
 
 
 SAMPLE_DF = pd.DataFrame(
@@ -35,7 +35,7 @@ def test_run_dataset_runs_steps_in_order():
                 ("lakefs", path, repo, branch, object_path, commit_message, fdo)
             ),
         ),
-        patch("flow.dataset_flow.parse_dataset", side_effect=lambda path, delim, skiprows=0: call_order.append(("parse", path)) or SAMPLE_DF),
+        patch("flow.dataset_flow.parse_dataset", side_effect=lambda path, delim, skiprows=0: call_order.append(("parse", path, delim)) or SAMPLE_DF),
         patch(
             "flow.dataset_flow.store_to_mariadb",
             side_effect=lambda df, table, database, primary_key=None: call_order.append(("mariadb", table, database, primary_key)),
@@ -44,7 +44,6 @@ def test_run_dataset_runs_steps_in_order():
         run_dataset(
             dataset_name="grippeweb",
             source_url="https://example.com/data.tsv",
-            source_delimiter="\t",
             lakefs_repo="sandbox",
             lakefs_branch="main",
             lakefs_object_path="RAW/RKI/grippeweb.tsv",
@@ -56,7 +55,7 @@ def test_run_dataset_runs_steps_in_order():
     assert call_order == [
         ("download", "https://example.com/data.tsv", EXPECTED_LOCAL_PATH),
         ("lakefs", EXPECTED_LOCAL_PATH, "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
-        ("parse", EXPECTED_LOCAL_PATH),
+        ("parse", EXPECTED_LOCAL_PATH, "\t"),
         ("mariadb", "grippeweb", "test", None),
     ]
 
@@ -67,7 +66,6 @@ def test_run_dataset_rejects_blank_required_parameters():
         run_dataset(
             dataset_name="grippeweb",
             source_url="",
-            source_delimiter="\t",
             lakefs_repo="sandbox",
             lakefs_branch="main",
             lakefs_object_path="RAW/RKI/grippeweb.tsv",
@@ -75,3 +73,20 @@ def test_run_dataset_rejects_blank_required_parameters():
             mariadb_table="grippeweb",
             mariadb_database="test",
         )
+
+
+def test_resolve_delimiter_infers_tsv():
+    assert _resolve_delimiter("path/to/data.tsv", None) == "\t"
+
+
+def test_resolve_delimiter_infers_csv():
+    assert _resolve_delimiter("path/to/data.csv", None) == ","
+
+
+def test_resolve_delimiter_override_takes_precedence():
+    assert _resolve_delimiter("path/to/data.csv", ";") == ";"
+
+
+def test_resolve_delimiter_raises_on_unknown_extension():
+    with pytest.raises(ValueError, match="Cannot infer delimiter"):
+        _resolve_delimiter("path/to/data.parquet", None)

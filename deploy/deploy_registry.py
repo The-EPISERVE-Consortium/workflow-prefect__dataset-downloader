@@ -16,7 +16,6 @@ WORK_POOL_NAME = "kubernetes-pool"
 REGISTRY_PATH = Path(__file__).with_name("datasets.yaml")
 REQUIRED_PARAMETERS = {
     "source_url",
-    "source_delimiter",
     "lakefs_repo",
     "lakefs_branch",
     "lakefs_object_path",
