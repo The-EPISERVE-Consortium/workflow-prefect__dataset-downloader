@@ -12,6 +12,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/GrippeWeb_Daten_des_Wochenberichts/refs/heads/main/GrippeWeb_Daten_des_Wochenberichts.tsv
       lakefs_object_path: incidence/influenza/RKI__grippeweb.tsv
       mariadb_table: grippeweb
+  influenza_cases_germany:
+	enabled: true
+	deployment_name: download__influenza_cases_germany
+	parameters:
+	  source_url: https://raw.githubusercontent.com/robert-koch-institut/Influenzafaelle_in_Deutschland/refs/heads/main/IfSG_Influenzafaelle.tsv
+	  lakefs_object_path: incidence/influenza/RKI__influenza_cases_germany.tsv
+	  mariadb_table: influenza_cases_germany
   corona_incidence_germany:
     enabled: true
     deployment_name: download__corona_incidence_germany
@@ -26,6 +33,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
       lakefs_object_path: incidence/covid/RKI__covid_states.csv
       mariadb_table: corona_incidence_states
+  rsv_cases_germany:
+	enabled: true
+	deployment_name: download__rsv_cases_germany
+	parameters:
+	  source_url: https://raw.githubusercontent.com/robert-koch-institut/Respiratorische_Synzytialvirusfaelle_in_Deutschland/refs/heads/main/IfSG_RSVfaelle.tsv
+	  lakefs_object_path: incidence/rsv/RKI__rsv_cases_germany.tsv
+	  mariadb_table: rsv_cases_germany
   wastewater_surveillance_aggregate:
     enabled: true
     deployment_name: download__wastewater_surveillance_aggregate
@@ -33,6 +47,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_aggregierte_kurve.tsv
       lakefs_object_path: wastewater/RKI__wastewater_surveillance_aggregate.tsv
       mariadb_table: wastewater_surveillance_aggregate
+  wastewater_surveillance_stations:
+	enabled: true
+	deployment_name: download__wastewater_surveillance_stations
+	parameters:
+	  source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_einzelstandorte.tsv
+	  lakefs_object_path: wastewater/RKI__wastewater_surveillance_stations.tsv
+	  mariadb_table: wastewater_surveillance_stations
   notaufnahme_surveillance:
     enabled: true
     deployment_name: download__notaufnahme_surveillance
@@ -40,6 +61,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Daten_der_Notaufnahmesurveillance/refs/heads/main/Notaufnahmesurveillance_Zeitreihen_Syndrome.tsv
       lakefs_object_path: surveillance/emergency_dept/RKI__notaufnahme_surveillance.tsv
       mariadb_table: notaufnahme_surveillance
+  sari_hospitalization_incidence:
+	enabled: true
+	deployment_name: download__sari_hospitalization_incidence
+	parameters:
+	  source_url: https://raw.githubusercontent.com/robert-koch-institut/SARI-Hospitalisierungsinzidenz/refs/heads/main/SARI-Hospitalisierungsinzidenz.tsv
+	  lakefs_object_path: surveillance/hospital/RKI__sari_hospitalization_incidence.tsv
+	  mariadb_table: sari_hospitalization_incidence
   weather_berlin_daily:
     enabled: true
     deployment_name: download__weather_berlin_daily
@@ -50,3 +78,13 @@ datasets:
       lakefs_commit_message: new version from Open-Meteo
       mariadb_table: weather_berlin_daily
       mariadb_primary_key: time
+  weather_berlin_hourly:
+	enabled: true
+	deployment_name: download__weather_berlin_hourly
+	parameters:
+	  source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m,relative_humidity_2m,precipitation&past_days=3&format=csv&timezone=Europe%2FBerlin"
+	  source_skiprows: 3
+	  lakefs_object_path: climate/temperature/open-meteo__weather_berlin_hourly.csv
+	  lakefs_commit_message: new version from Open-Meteo
+	  mariadb_table: weather_berlin_hourly
+	  mariadb_primary_key: time
