@@ -1,6 +1,5 @@
 defaults:
   lakefs_repo: data-raw
-  lakefs_processed_repo: data-processed
   lakefs_branch: main
   lakefs_commit_message: periodic download
   mariadb_database: episerve-raw-data
@@ -41,6 +40,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Respiratorische_Synzytialvirusfaelle_in_Deutschland/refs/heads/main/IfSG_RSVfaelle.tsv
       lakefs_object_path: incidence/rsv/RKI__rsv_cases_germany.tsv
       mariadb_table: rsv_cases_germany
+  are_consultation_incidence:
+    enabled: true
+    deployment_name: download__are_consultation_incidence
+    parameters:
+      source_url: https://raw.githubusercontent.com/robert-koch-institut/ARE-Konsultationsinzidenz/refs/heads/main/ARE-Konsultationsinzidenz.tsv
+      lakefs_object_path: incidence/respiratory/RKI__are_consultation_incidence.tsv
+      mariadb_table: are_consultation_incidence
   wastewater_surveillance_aggregate:
     enabled: true
     deployment_name: download__wastewater_surveillance_aggregate
@@ -69,6 +75,13 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/SARI-Hospitalisierungsinzidenz/refs/heads/main/SARI-Hospitalisierungsinzidenz.tsv
       lakefs_object_path: surveillance/hospital/RKI__sari_hospitalization_incidence.tsv
       mariadb_table: sari_hospitalization_incidence
+  covid_hospitalizations:
+    enabled: true
+    deployment_name: download__covid_hospitalizations
+    parameters:
+      source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland/refs/heads/main/Aktuell_Deutschland_adjustierte-COVID-19-Hospitalisierungen.csv
+      lakefs_object_path: surveillance/hospital/RKI__covid_hospitalizations.csv
+      mariadb_table: covid_hospitalizations
   weather_berlin_daily:
     enabled: true
     deployment_name: download__weather_berlin_daily
