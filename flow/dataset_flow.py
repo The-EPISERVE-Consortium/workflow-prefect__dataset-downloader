@@ -1,5 +1,8 @@
 """Generic Prefect flow for downloading, storing, and publishing datasets."""
 
+import tempfile
+from pathlib import Path
+
 from prefect import flow
 
 from tasks.commit_to_lakefs import commit_to_lakefs
@@ -25,7 +28,6 @@ def run_dataset(
     dataset_name: str,
     source_url: str,
     source_delimiter: str,
-    local_path: str,
     lakefs_repo: str,
     lakefs_branch: str,
     lakefs_object_path: str,
@@ -41,7 +43,6 @@ def run_dataset(
             "dataset_name": dataset_name,
             "source_url": source_url,
             "source_delimiter": source_delimiter,
-            "local_path": local_path,
             "lakefs_repo": lakefs_repo,
             "lakefs_branch": lakefs_branch,
             "lakefs_object_path": lakefs_object_path,
@@ -50,6 +51,7 @@ def run_dataset(
             "mariadb_database": mariadb_database,
         }
     )
+    local_path = str(Path(tempfile.gettempdir()) / Path(lakefs_object_path).name)
     download_file(source_url, local_path)
     fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path)
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)

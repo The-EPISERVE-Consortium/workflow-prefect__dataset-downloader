@@ -1,9 +1,11 @@
 """Unit tests for flow/dataset_flow.py."""
 
-import pytest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 from flow.dataset_flow import run_dataset
 
@@ -16,6 +18,8 @@ SAMPLE_DF = pd.DataFrame(
 )
 
 SAMPLE_FDO = {"@id": "Q123", "@type": "DigitalObject"}
+
+EXPECTED_LOCAL_PATH = str(Path(tempfile.gettempdir()) / "grippeweb.tsv")
 
 
 def test_run_dataset_runs_steps_in_order():
@@ -31,7 +35,7 @@ def test_run_dataset_runs_steps_in_order():
                 ("lakefs", path, repo, branch, object_path, commit_message, fdo)
             ),
         ),
-        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF, side_effect=lambda path, delim, skiprows=0: call_order.append(("parse", path)) or SAMPLE_DF),
+        patch("flow.dataset_flow.parse_dataset", side_effect=lambda path, delim, skiprows=0: call_order.append(("parse", path)) or SAMPLE_DF),
         patch(
             "flow.dataset_flow.store_to_mariadb",
             side_effect=lambda df, table, database, primary_key=None: call_order.append(("mariadb", table, database, primary_key)),
@@ -41,7 +45,6 @@ def test_run_dataset_runs_steps_in_order():
             dataset_name="grippeweb",
             source_url="https://example.com/data.tsv",
             source_delimiter="\t",
-            local_path="/tmp/grippeweb.tsv",
             lakefs_repo="sandbox",
             lakefs_branch="main",
             lakefs_object_path="RAW/RKI/grippeweb.tsv",
@@ -51,9 +54,9 @@ def test_run_dataset_runs_steps_in_order():
         )
 
     assert call_order == [
-        ("download", "https://example.com/data.tsv", "/tmp/grippeweb.tsv"),
-        ("lakefs", "/tmp/grippeweb.tsv", "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
-        ("parse", "/tmp/grippeweb.tsv"),
+        ("download", "https://example.com/data.tsv", EXPECTED_LOCAL_PATH),
+        ("lakefs", EXPECTED_LOCAL_PATH, "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
+        ("parse", EXPECTED_LOCAL_PATH),
         ("mariadb", "grippeweb", "test", None),
     ]
 
@@ -65,7 +68,6 @@ def test_run_dataset_rejects_blank_required_parameters():
             dataset_name="grippeweb",
             source_url="",
             source_delimiter="\t",
-            local_path="/tmp/grippeweb.tsv",
             lakefs_repo="sandbox",
             lakefs_branch="main",
             lakefs_object_path="RAW/RKI/grippeweb.tsv",
