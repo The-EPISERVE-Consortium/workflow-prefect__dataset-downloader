@@ -40,7 +40,16 @@ def test_shard_qid_rejects_non_digit_suffix():
 
 # --- convert_to_parquet ---
 
-SAMPLE_FDO = {"@id": "Q1234567890123", "@type": "DigitalObject"}
+SAMPLE_FDO = {
+    "@id": "Q1234567890123",
+    "@type": "DigitalObject",
+    "kernel": {
+        "@id": "Q1234567890123",
+        "fdo:hasComponent": [
+            {"@id": "#RKI__grippeweb.tsv", "componentId": "RKI__grippeweb.tsv", "mediaType": "text/tab-separated-values"}
+        ],
+    },
+}
 
 
 def _make_mock_branch(has_changes: bool = True):
@@ -67,7 +76,7 @@ def test_convert_to_parquet_uploads_valid_parquet():
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
         convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
 
-    parquet_path = "12/34/56/Q1234567890123.parquet"
+    parquet_path = "12/34/56/Q1234567890123/components/Q1234567890123.parquet"
     assert parquet_path in uploaded
     assert uploaded[parquet_path]["content_type"] == "application/vnd.apache.parquet"
     table = pq.read_table(io.BytesIO(uploaded[parquet_path]["data"]))
@@ -75,7 +84,7 @@ def test_convert_to_parquet_uploads_valid_parquet():
     assert table.num_rows == 2
 
 
-def test_convert_to_parquet_uploads_fdo_metadata():
+def test_convert_to_parquet_uploads_fdo_with_parquet_component():
     import json
     qid = "Q1234567890123"
     mock_repo, mock_branch, uploaded = _make_mock_branch()
@@ -83,10 +92,15 @@ def test_convert_to_parquet_uploads_fdo_metadata():
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
         convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
 
-    fdo_path = "12/34/56/Q1234567890123.fdo.json"
+    fdo_path = "12/34/56/Q1234567890123/Q1234567890123.fdo.json"
     assert fdo_path in uploaded
     assert uploaded[fdo_path]["content_type"] == "application/json"
-    assert json.loads(uploaded[fdo_path]["data"]) == SAMPLE_FDO
+
+    stored_fdo = json.loads(uploaded[fdo_path]["data"])
+    component = stored_fdo["kernel"]["fdo:hasComponent"][0]
+    assert component["componentId"] == "Q1234567890123.parquet"
+    assert component["@id"] == "components/Q1234567890123.parquet"
+    assert component["mediaType"] == "application/vnd.apache.parquet"
 
 
 def test_convert_to_parquet_commits_with_qid_message():

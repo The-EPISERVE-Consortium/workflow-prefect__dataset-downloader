@@ -40,13 +40,29 @@ def convert_to_parquet(
     """Convert a DataFrame to Parquet and commit it alongside its FDO metadata to the processed lakeFS repo."""
     logger = get_logger(__name__)
 
+    qid_upper = qid.upper()
     shard_prefix = shard_qid(qid)
-    parquet_path = shard_prefix + ".parquet"
-    fdo_path = shard_prefix + ".fdo.json"
+    parquet_filename = qid_upper + ".parquet"
+    parquet_path = f"{shard_prefix}/components/{parquet_filename}"
+    fdo_path = f"{shard_prefix}/{qid_upper}.fdo.json"
 
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     parquet_bytes = buf.getvalue()
+
+    processed_fdo = {
+        **fdo_metadata,
+        "kernel": {
+            **fdo_metadata["kernel"],
+            "fdo:hasComponent": [
+                {
+                    "@id": f"components/{parquet_filename}",
+                    "componentId": parquet_filename,
+                    "mediaType": "application/vnd.apache.parquet",
+                }
+            ],
+        },
+    }
 
     branch = _get_lakefs_repository(lakefs_repo).branch(lakefs_branch)
 
@@ -54,7 +70,7 @@ def convert_to_parquet(
     branch.object(parquet_path).upload(data=parquet_bytes, content_type="application/vnd.apache.parquet")
 
     logger.info("Uploading FDO metadata to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, fdo_path)
-    branch.object(fdo_path).upload(data=json.dumps(fdo_metadata, indent=2).encode(), content_type="application/json")
+    branch.object(fdo_path).upload(data=json.dumps(processed_fdo, indent=2).encode(), content_type="application/json")
 
     changes = list(branch.uncommitted())
     if not changes:
