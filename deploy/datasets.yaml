@@ -20,8 +20,8 @@ datasets:
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Deutschland.csv
       source_delimiter: ","
-      local_path: /tmp/covid_germany.tsv
-      lakefs_object_path: incidence/covid/RKI__covid_germany.tsv
+      local_path: /tmp/covid_germany.csv
+      lakefs_object_path: incidence/covid/RKI__covid_germany.csv
       mariadb_table: corona_incidence_germany
   corona_incidence_states:
     enabled: true
@@ -29,8 +29,8 @@ datasets:
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
       source_delimiter: ","
-      local_path: /tmp/covid_states.tsv
-      lakefs_object_path: incidence/covid/RKI__covid_states.tsv
+      local_path: /tmp/covid_states.csv
+      lakefs_object_path: incidence/covid/RKI__covid_states.csv
       mariadb_table: corona_incidence_states
   wastewater_surveillance_aggregate:
     enabled: true
