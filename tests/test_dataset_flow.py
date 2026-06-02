@@ -16,17 +16,21 @@ SAMPLE_DF = pd.DataFrame(
 )
 
 
+SAMPLE_FDO = {"@id": "Q123", "@type": "DigitalObject"}
+
+
 def test_run_dataset_runs_steps_in_order():
-    """run_dataset should save locally, then upload to lakeFS, then store in MariaDB."""
+    """run_dataset should save locally, create FDO metadata, upload to lakeFS, then store in MariaDB."""
     call_order = []
 
     with (
         patch("flow.dataset_flow.download_tsv", return_value=SAMPLE_DF),
         patch("flow.dataset_flow.save_locally", side_effect=lambda df, path: call_order.append(("save", path))),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
         patch(
             "flow.dataset_flow.commit_to_lakefs",
-            side_effect=lambda path, repo, branch, object_path, commit_message: call_order.append(
-                ("lakefs", path, repo, branch, object_path, commit_message)
+            side_effect=lambda path, repo, branch, object_path, commit_message, fdo=None: call_order.append(
+                ("lakefs", path, repo, branch, object_path, commit_message, fdo)
             ),
         ),
         patch(
@@ -35,6 +39,7 @@ def test_run_dataset_runs_steps_in_order():
         ),
     ):
         run_dataset(
+            dataset_name="grippeweb",
             source_url="https://example.com/data.tsv",
             source_delimiter="\t",
             local_path="/tmp/grippeweb.tsv",
@@ -48,7 +53,7 @@ def test_run_dataset_runs_steps_in_order():
 
     assert call_order == [
         ("save", "/tmp/grippeweb.tsv"),
-        ("lakefs", "/tmp/grippeweb.tsv", "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI"),
+        ("lakefs", "/tmp/grippeweb.tsv", "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
         ("mariadb", "grippeweb", "test", None),
     ]
 
@@ -57,6 +62,7 @@ def test_run_dataset_rejects_blank_required_parameters():
     """run_dataset should fail early with a clear error when a required parameter is blank."""
     with pytest.raises(ValueError, match="Missing required flow parameter\\(s\\): source_url"):
         run_dataset(
+            dataset_name="grippeweb",
             source_url="",
             source_delimiter="\t",
             local_path="/tmp/grippeweb.tsv",

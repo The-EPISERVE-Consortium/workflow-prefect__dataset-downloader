@@ -3,6 +3,7 @@
 from prefect import flow
 
 from tasks.commit_to_lakefs import commit_to_lakefs
+from tasks.create_fdo_metadata import create_fdo_metadata
 from tasks.download_tsv import download_tsv
 from tasks.save_locally import save_locally
 from tasks.store_to_mariadb import store_to_mariadb
@@ -21,6 +22,7 @@ def _validate_required_parameters(params: dict[str, str]) -> None:
 
 @flow
 def run_dataset(
+    dataset_name: str,
     source_url: str,
     source_delimiter: str,
     local_path: str,
@@ -36,6 +38,7 @@ def run_dataset(
     """Fetch a TSV dataset, persist it locally, and publish it downstream."""
     _validate_required_parameters(
         {
+            "dataset_name": dataset_name,
             "source_url": source_url,
             "source_delimiter": source_delimiter,
             "local_path": local_path,
@@ -49,5 +52,6 @@ def run_dataset(
     )
     df = download_tsv(source_url, source_delimiter, source_skiprows)
     save_locally(df, local_path)
-    commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message)
+    fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path)
+    commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)

@@ -72,6 +72,7 @@ def _validate_dataset_config(
         raise ValueError(f"Dataset '{dataset_key}' must define a 'parameters' mapping.")
 
     merged_parameters = {**defaults, **parameters}
+    merged_parameters.setdefault("dataset_name", dataset_key)
     run_daily = merged_parameters.pop("run_daily", True)
     missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))
     if missing:

@@ -1,5 +1,6 @@
 """Prefect task for uploading the saved TSV to lakeFS and committing it."""
 
+import json
 import os
 from pathlib import Path
 
@@ -30,8 +31,13 @@ def commit_to_lakefs(
     branch: str,
     object_path: str,
     commit_message: str,
+    fdo_metadata: dict | None = None,
 ) -> None:
-    """Upload the saved TSV to lakeFS and create a commit on the target branch."""
+    """Upload the saved file to lakeFS and create a commit on the target branch.
+
+    If fdo_metadata is provided, uploads it as <stem>.fdo.json alongside the data file
+    in the same commit.
+    """
     logger = get_logger(__name__)
     lakefs_branch = _get_lakefs_repository(repo).branch(branch)
     local_path = Path(path)
@@ -41,6 +47,14 @@ def commit_to_lakefs(
         lakefs_branch.object(object_path).upload(
             data=infile.read(),
             content_type="text/tab-separated-values",
+        )
+
+    if fdo_metadata is not None:
+        fdo_object_path = str(Path(object_path).parent / (Path(object_path).stem + ".fdo.json"))
+        logger.info("Uploading FDO metadata to lakeFS %s/%s/%s", repo, branch, fdo_object_path)
+        lakefs_branch.object(fdo_object_path).upload(
+            data=json.dumps(fdo_metadata, indent=2).encode(),
+            content_type="application/json",
         )
 
     changes = list(lakefs_branch.uncommitted())
