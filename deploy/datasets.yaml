@@ -12,7 +12,7 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/GrippeWeb_Daten_des_Wochenberichts/refs/heads/main/GrippeWeb_Daten_des_Wochenberichts.tsv
       source_delimiter: "\t"
       local_path: /tmp/grippeweb.tsv
-      lakefs_object_path: RAW/incidence/influenza/RKI__grippeweb.tsv
+      lakefs_object_path: incidence/influenza/RKI__grippeweb.tsv
       mariadb_table: grippeweb
   corona_incidence_germany:
     enabled: true
@@ -21,7 +21,7 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Deutschland.csv
       source_delimiter: ","
       local_path: /tmp/covid_germany.tsv
-      lakefs_object_path: RAW/incidence/covid/RKI__covid_germany.tsv
+      lakefs_object_path: incidence/covid/RKI__covid_germany.tsv
       mariadb_table: corona_incidence_germany
   corona_incidence_states:
     enabled: true
@@ -30,7 +30,7 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
       source_delimiter: ","
       local_path: /tmp/covid_states.tsv
-      lakefs_object_path: RAW/incidence/covid/RKI__covid_states.tsv
+      lakefs_object_path: incidence/covid/RKI__covid_states.tsv
       mariadb_table: corona_incidence_states
   wastewater_surveillance_aggregate:
     enabled: true
@@ -39,7 +39,7 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_aggregierte_kurve.tsv
       source_delimiter: "\t"
       local_path: /tmp/wastewater_surveillance_aggregate.tsv
-      lakefs_object_path: RAW/wastewater/RKI__wastewater_surveillance_aggregate.tsv
+      lakefs_object_path: wastewater/RKI__wastewater_surveillance_aggregate.tsv
       mariadb_table: wastewater_surveillance_aggregate
   notaufnahme_surveillance:
     enabled: true
@@ -48,7 +48,7 @@ datasets:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Daten_der_Notaufnahmesurveillance/refs/heads/main/Notaufnahmesurveillance_Zeitreihen_Syndrome.tsv
       source_delimiter: "\t"
       local_path: /tmp/notaufnahme_surveillance.tsv
-      lakefs_object_path: RAW/surveillance/emergency_dept/RKI__notaufnahme_surveillance.tsv
+      lakefs_object_path: surveillance/emergency_dept/RKI__notaufnahme_surveillance.tsv
       mariadb_table: notaufnahme_surveillance
   weather_berlin_daily:
     enabled: true
@@ -58,7 +58,7 @@ datasets:
       source_delimiter: ","
       source_skiprows: 3
       local_path: /tmp/weather_berlin_daily.csv
-      lakefs_object_path: RAW/climate/temperature/open-meteo__weather_berlin_daily.csv
+      lakefs_object_path: climate/temperature/open-meteo__weather_berlin_daily.csv
       lakefs_commit_message: new version from Open-Meteo
       mariadb_table: weather_berlin_daily
       mariadb_primary_key: time
