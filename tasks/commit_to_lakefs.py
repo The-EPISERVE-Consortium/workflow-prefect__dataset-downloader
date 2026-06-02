@@ -62,5 +62,11 @@ def commit_to_lakefs(
         logger.info("No uncommitted lakeFS changes detected on %s/%s", repo, branch)
         return
 
-    ref = lakefs_branch.commit(message=commit_message)
-    logger.info("Committed lakeFS change %s on %s/%s", getattr(ref, "id", "<unknown>"), repo, branch)
+    try:
+        ref = lakefs_branch.commit(message=commit_message)
+        logger.info("Committed lakeFS change %s on %s/%s", getattr(ref, "id", "<unknown>"), repo, branch)
+    except Exception as e:
+        if "no changes" in str(e).lower():
+            logger.info("No changes to commit on %s/%s", repo, branch)
+        else:
+            raise
