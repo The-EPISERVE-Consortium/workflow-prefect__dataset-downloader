@@ -42,7 +42,7 @@ def store_to_mariadb(df, table: str, database: str, primary_key: str | None = No
 
 def _to_rows(df) -> list[tuple]:
     return [
-        tuple(None if isinstance(v, float) and math.isnan(v) else v for v in row)
+        tuple(None if isinstance(v, float) and not math.isfinite(v) else v for v in row)
         for row in df.itertuples(index=False, name=None)
     ]
 

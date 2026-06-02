@@ -1,11 +1,12 @@
 """Unit tests for tasks/store_to_mariadb.py."""
 
+import math
 import os
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from tasks.store_to_mariadb import store_to_mariadb
+from tasks.store_to_mariadb import store_to_mariadb, _to_rows
 
 
 SAMPLE_DF = pd.DataFrame(
@@ -41,6 +42,20 @@ def test_store_to_mariadb_writes_and_commits():
     assert len(call_args.args[1]) == len(SAMPLE_DF)
     mock_conn.commit.assert_called_once()
     mock_conn.close.assert_called_once()
+
+
+def test_to_rows_converts_nan_and_inf_to_none():
+    """_to_rows should replace NaN, inf, and -inf with None."""
+    df = pd.DataFrame({"a": [1.0, float("nan"), float("inf"), float("-inf")]})
+    rows = _to_rows(df)
+    assert rows == [(1.0,), (None,), (None,), (None,)]
+
+
+def test_to_rows_preserves_finite_floats():
+    """_to_rows should leave normal float values unchanged."""
+    df = pd.DataFrame({"a": [0.0, -1.5, 3.14]})
+    rows = _to_rows(df)
+    assert all(math.isfinite(r[0]) for r in rows)
 
 
 @patch.dict(
