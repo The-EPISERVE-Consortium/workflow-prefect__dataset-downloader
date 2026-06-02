@@ -69,19 +69,34 @@ def _make_mock_branch(has_changes: bool = True):
     return mock_repo, mock_branch, uploaded
 
 
+SOURCE_URL = "https://example.com/GrippeWeb_Daten_des_Wochenberichts.tsv"
+
+
 def test_convert_to_parquet_uploads_valid_parquet():
     qid = "Q1234567890123"
     mock_repo, mock_branch, uploaded = _make_mock_branch()
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, SOURCE_URL, "data-processed")
 
-    parquet_path = "12/34/56/Q1234567890123/components/Q1234567890123.parquet"
+    parquet_path = "12/34/56/Q1234567890123/components/GrippeWeb_Daten_des_Wochenberichts.parquet"
     assert parquet_path in uploaded
     assert uploaded[parquet_path]["content_type"] == "application/vnd.apache.parquet"
     table = pq.read_table(io.BytesIO(uploaded[parquet_path]["data"]))
     assert table.column_names == ["col1", "col2"]
     assert table.num_rows == 2
+
+
+def test_convert_to_parquet_strips_query_string_from_filename():
+    qid = "Q1234567890123"
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
+    url_with_query = "https://api.example.com/forecast?format=csv&timezone=Europe%2FBerlin"
+
+    with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, url_with_query, "data-processed")
+
+    parquet_path = "12/34/56/Q1234567890123/components/forecast.parquet"
+    assert parquet_path in uploaded
 
 
 def test_convert_to_parquet_uploads_fdo_with_parquet_component():
@@ -90,7 +105,7 @@ def test_convert_to_parquet_uploads_fdo_with_parquet_component():
     mock_repo, mock_branch, uploaded = _make_mock_branch()
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, SOURCE_URL, "data-processed")
 
     fdo_path = "12/34/56/Q1234567890123/Q1234567890123.fdo.json"
     assert fdo_path in uploaded
@@ -98,8 +113,8 @@ def test_convert_to_parquet_uploads_fdo_with_parquet_component():
 
     stored_fdo = json.loads(uploaded[fdo_path]["data"])
     component = stored_fdo["kernel"]["fdo:hasComponent"][0]
-    assert component["componentId"] == "Q1234567890123.parquet"
-    assert component["@id"] == "components/Q1234567890123.parquet"
+    assert component["componentId"] == "GrippeWeb_Daten_des_Wochenberichts.parquet"
+    assert component["@id"] == "components/GrippeWeb_Daten_des_Wochenberichts.parquet"
     assert component["mediaType"] == "application/vnd.apache.parquet"
 
 
@@ -108,7 +123,7 @@ def test_convert_to_parquet_commits_with_qid_message():
     mock_repo, mock_branch, _ = _make_mock_branch()
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, SOURCE_URL, "data-processed")
 
     mock_branch.commit.assert_called_once_with(message="Parquet conversion of Q1234567890123")
 
@@ -118,6 +133,6 @@ def test_convert_to_parquet_skips_commit_when_no_changes():
     mock_repo, mock_branch, _ = _make_mock_branch(has_changes=False)
 
     with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
-        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, "data-processed")
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, SOURCE_URL, "data-processed")
 
     mock_branch.commit.assert_not_called()

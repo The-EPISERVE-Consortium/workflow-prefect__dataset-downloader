@@ -42,7 +42,7 @@ def test_run_dataset_runs_steps_in_order():
         ),
         patch(
             "flow.dataset_flow.convert_to_parquet",
-            side_effect=lambda df, qid, fdo, repo, **kw: call_order.append(("parquet", qid, fdo, repo)),
+            side_effect=lambda df, qid, fdo, url, repo, **kw: call_order.append(("parquet", qid, fdo, url, repo)),
         ),
     ):
         run_dataset(
@@ -62,7 +62,7 @@ def test_run_dataset_runs_steps_in_order():
         ("lakefs", EXPECTED_LOCAL_PATH, "sandbox", "main", "RAW/RKI/grippeweb.tsv", "new version from RKI", SAMPLE_FDO),
         ("parse", EXPECTED_LOCAL_PATH, "\t"),
         ("mariadb", "grippeweb", "test", None),
-        ("parquet", SAMPLE_FDO["@id"], SAMPLE_FDO, "data-processed"),
+        ("parquet", SAMPLE_FDO["@id"], SAMPLE_FDO, "https://example.com/data.tsv", "data-processed"),
     ]
 
 

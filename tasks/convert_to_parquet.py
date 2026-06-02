@@ -2,6 +2,7 @@
 
 import io
 import json
+from pathlib import Path
 
 import pandas as pd
 from prefect import task
@@ -34,6 +35,7 @@ def convert_to_parquet(
     df: pd.DataFrame,
     qid: str,
     fdo_metadata: dict,
+    source_url: str,
     lakefs_repo: str,
     lakefs_branch: str = "main",
 ) -> None:
@@ -42,7 +44,8 @@ def convert_to_parquet(
 
     qid_upper = qid.upper()
     shard_prefix = shard_qid(qid)
-    parquet_filename = qid_upper + ".parquet"
+    source_stem = Path(source_url.split("?")[0]).stem
+    parquet_filename = source_stem + ".parquet"
     parquet_path = f"{shard_prefix}/components/{parquet_filename}"
     fdo_path = f"{shard_prefix}/{qid_upper}.fdo.json"
 
