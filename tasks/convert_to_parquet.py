@@ -52,6 +52,7 @@ def convert_to_parquet(
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     parquet_bytes = buf.getvalue()
+    parquet_size = len(parquet_bytes)
 
     processed_fdo = {
         **fdo_metadata,
@@ -66,6 +67,19 @@ def convert_to_parquet(
             ],
         },
     }
+
+    if "profile" in processed_fdo and processed_fdo["profile"].get("distribution"):
+        dist = processed_fdo["profile"]["distribution"]
+        processed_fdo = {
+            **processed_fdo,
+            "profile": {
+                **processed_fdo["profile"],
+                "distribution": [
+                    {**dist[0], "contentSize": parquet_size},
+                    *dist[1:],
+                ],
+            },
+        }
 
     branch = _get_lakefs_repository(lakefs_repo).branch(lakefs_branch)
 

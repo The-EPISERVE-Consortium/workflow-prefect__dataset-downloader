@@ -51,7 +51,6 @@ SAMPLE_FDO = {
     },
 }
 
-
 def _make_mock_branch(has_changes: bool = True):
     mock_repo = MagicMock()
     mock_branch = MagicMock()
@@ -70,6 +69,17 @@ def _make_mock_branch(has_changes: bool = True):
 
 
 SOURCE_URL = "https://example.com/GrippeWeb_Daten_des_Wochenberichts.tsv"
+
+SAMPLE_FDO_WITH_PROFILE = {
+    **SAMPLE_FDO,
+    "profile": {
+        "@type": "Dataset",
+        "name": "grippeweb",
+        "description": "Dataset grippeweb",
+        "url": SOURCE_URL,
+        "distribution": [{"@type": "DataDownload", "contentUrl": SOURCE_URL}],
+    },
+}
 
 
 def test_convert_to_parquet_uploads_valid_parquet():
@@ -126,6 +136,21 @@ def test_convert_to_parquet_commits_with_qid_message():
         convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO, SOURCE_URL, "data-processed")
 
     mock_branch.commit.assert_called_once_with(message="Parquet conversion of Q1234567890123")
+
+
+def test_convert_to_parquet_sets_content_size_in_distribution():
+    import json
+    qid = "Q1234567890123"
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
+
+    with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
+        convert_to_parquet.fn(SAMPLE_DF, qid, SAMPLE_FDO_WITH_PROFILE, SOURCE_URL, "data-processed")
+
+    fdo_path = "12/34/56/Q1234567890123/Q1234567890123.fdo.json"
+    stored_fdo = json.loads(uploaded[fdo_path]["data"])
+    dist = stored_fdo["profile"]["distribution"][0]
+    assert "contentSize" in dist
+    assert dist["contentSize"] > 0
 
 
 def test_convert_to_parquet_skips_commit_when_no_changes():
