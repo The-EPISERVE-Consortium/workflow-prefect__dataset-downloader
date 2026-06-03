@@ -49,7 +49,7 @@ def test_create_fdo_metadata_qid_is_consistent():
 def test_create_fdo_metadata_name_and_description():
     result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
     assert result["profile"]["name"] == "grippeweb"
-    assert result["profile"]["description"] == f"Dataset grippeweb downloaded from {URL}"
+    assert result["profile"]["description"] == "Dataset grippeweb"
     assert result["profile"]["url"] == URL
     assert result["profile"]["distribution"][0]["contentUrl"] == URL
 

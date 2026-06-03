@@ -60,7 +60,7 @@ def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: 
             "@type": "Dataset",
             "@id": qid,
             "name": dataset_name,
-            "description": f"Dataset {dataset_name} downloaded from {source_url}",
+            "description": f"Dataset {dataset_name}",
             "url": source_url,
             "distribution": [
                 {
