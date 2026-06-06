@@ -12,6 +12,11 @@ def test_mint_qid_format():
     assert re.match(r"^Q\d{13}$", qid), f"Unexpected QID format: {qid}"
 
 
+def test_create_fdo_metadata_qid_has_raw_suffix():
+    result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
+    assert result["@id"].endswith("-raw")
+
+
 def test_mint_qid_is_stable():
     assert mint_qid(URL) == mint_qid(URL)
 

@@ -25,7 +25,7 @@ def _media_type(object_path: str) -> str:
 @task
 def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: str) -> dict:
     """Build an FDO metadata record for the downloaded dataset."""
-    qid = mint_qid(source_url)
+    qid = mint_qid(source_url) + "-raw"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     filename = Path(lakefs_object_path).name
 

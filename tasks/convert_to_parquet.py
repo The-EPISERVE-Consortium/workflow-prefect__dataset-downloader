@@ -9,6 +9,7 @@ from prefect import task
 
 from tasks._logging import get_logger
 from tasks.commit_to_lakefs import _get_lakefs_repository
+from tasks.create_fdo_metadata import mint_qid
 
 
 def shard_qid(qid: str) -> str:
@@ -33,7 +34,6 @@ def shard_qid(qid: str) -> str:
 @task
 def convert_to_parquet(
     df: pd.DataFrame,
-    qid: str,
     fdo_metadata: dict,
     source_url: str,
     lakefs_repo: str,
@@ -42,8 +42,9 @@ def convert_to_parquet(
     """Convert a DataFrame to Parquet and commit it alongside its FDO metadata to the processed lakeFS repo."""
     logger = get_logger(__name__)
 
-    qid_upper = qid.upper()
-    shard_prefix = shard_qid(qid)
+    canonical_qid = mint_qid(source_url)
+    qid_upper = canonical_qid.upper()
+    shard_prefix = shard_qid(canonical_qid)
     source_stem = Path(source_url.split("?")[0]).stem
     parquet_filename = source_stem + ".parquet"
     parquet_path = f"{shard_prefix}/components/{parquet_filename}"
@@ -54,10 +55,16 @@ def convert_to_parquet(
     parquet_bytes = buf.getvalue()
     parquet_size = len(parquet_bytes)
 
+    raw_qid = fdo_metadata["@id"]
+    lakefs_content_url = f"lakefs://{lakefs_repo}/{lakefs_branch}/{parquet_path}"
+
     processed_fdo = {
         **fdo_metadata,
+        "@id": canonical_qid,
         "kernel": {
             **fdo_metadata["kernel"],
+            "@id": canonical_qid,
+            "primaryIdentifier": canonical_qid,
             "fdo:hasComponent": [
                 {
                     "@id": f"components/{parquet_filename}",
@@ -65,6 +72,17 @@ def convert_to_parquet(
                     "mediaType": "application/vnd.apache.parquet",
                 }
             ],
+        },
+        "profile": {
+            **fdo_metadata.get("profile", {}),
+            "@id": canonical_qid,
+        },
+        "provenance": {
+            **fdo_metadata.get("provenance", {}),
+            "prov:wasDerivedFrom": {
+                "@id": raw_qid,
+                "prov:hadPrimarySource": source_url,
+            },
         },
     }
 
@@ -75,7 +93,7 @@ def convert_to_parquet(
             "profile": {
                 **processed_fdo["profile"],
                 "distribution": [
-                    {**dist[0], "contentSize": parquet_size},
+                    {**dist[0], "contentUrl": lakefs_content_url, "contentSize": parquet_size},
                     *dist[1:],
                 ],
             },
@@ -95,7 +113,7 @@ def convert_to_parquet(
         return
 
     try:
-        ref = branch.commit(message=f"Parquet conversion of {qid}")
+        ref = branch.commit(message=f"Parquet conversion of {canonical_qid}")
         logger.info("Committed parquet %s on %s/%s", getattr(ref, "id", "<unknown>"), lakefs_repo, lakefs_branch)
     except Exception as e:
         if "no changes" in str(e).lower():
