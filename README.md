@@ -1,6 +1,6 @@
 # workflow-prefect__dataset-downloader
 
-Prefect 3 workflow code for downloading delimited datasets from Git-backed sources, saving them locally as TSV, publishing them to lakeFS, and loading them into MariaDB. Dataset deployment settings live in `deploy/datasets.yaml`.
+Prefect 3 workflow that downloads epidemiological datasets from public sources (RKI GitHub repos, Open-Meteo API), publishes them to lakeFS with FDO metadata sidecars, converts them to Parquet in `data-processed`, and loads them into MariaDB. Dataset-specific parameters live in `deploy/datasets.yaml`.
 
 ## Structure
 
@@ -39,6 +39,26 @@ PREFECT_API_URL=https://<your-prefect-server>/api python -m deploy --all
 ```
 
 Add or change deployments by editing `deploy/datasets.yaml`.
+
+## Configured datasets
+
+All sources are public RKI GitHub repos or the Open-Meteo API. Each dataset gets a deployment named `download__<key>`.
+
+| Key | Source | lakeFS path |
+|---|---|---|
+| `grippeweb` | RKI GrippeWeb | `incidence/influenza/RKI__grippeweb.tsv` |
+| `influenza_cases_germany` | RKI Influenzafälle | `incidence/influenza/RKI__influenza_cases_germany.tsv` |
+| `corona_incidence_germany` | RKI COVID-19 7-Tage-Inzidenz | `incidence/covid/RKI__covid_germany.csv` |
+| `corona_incidence_states` | RKI COVID-19 7-Tage-Inzidenz Bundesländer | `incidence/covid/RKI__covid_states.csv` |
+| `rsv_cases_germany` | RKI RSV-Fälle | `incidence/rsv/RKI__rsv_cases_germany.tsv` |
+| `are_consultation_incidence` | RKI ARE-Konsultationsinzidenz | `incidence/respiratory/RKI__are_consultation_incidence.tsv` |
+| `wastewater_surveillance_aggregate` | RKI AMELAG aggregiert | `wastewater/RKI__wastewater_surveillance_aggregate.tsv` |
+| `wastewater_surveillance_stations` | RKI AMELAG Einzelstandorte | `wastewater/RKI__wastewater_surveillance_stations.tsv` |
+| `notaufnahme_surveillance` | RKI Notaufnahmesurveillance | `surveillance/emergency_dept/RKI__notaufnahme_surveillance.tsv` |
+| `sari_hospitalization_incidence` | RKI SARI-Hospitalisierungsinzidenz | `surveillance/hospital/RKI__sari_hospitalization_incidence.tsv` |
+| `covid_hospitalizations` | RKI COVID-19-Hospitalisierungen | `surveillance/hospital/RKI__covid_hospitalizations.csv` |
+| `weather_berlin_daily` | Open-Meteo Berlin (daily) | `climate/temperature/open-meteo__weather_berlin_daily.csv` |
+| `weather_berlin_hourly` | Open-Meteo Berlin (hourly) | `climate/temperature/open-meteo__weather_berlin_hourly.csv` |
 
 ## CI
 
