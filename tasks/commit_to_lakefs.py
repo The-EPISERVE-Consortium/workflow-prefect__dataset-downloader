@@ -2,6 +2,7 @@
 
 import json
 import os
+import random
 import time
 from pathlib import Path
 
@@ -74,9 +75,9 @@ def commit_to_lakefs(
                 break
             elif "predicate failed" in str(e).lower():
                 if attempt < 3:
-                    delay = 2 ** attempt
+                    delay = random.uniform(3, 10)
                     logger.warning(
-                        "Commit conflict on %s/%s (predicate failed), retrying in %ds (attempt %d/3)",
+                        "Commit conflict on %s/%s (predicate failed), retrying in %.1fs (attempt %d/3)",
                         repo, branch, delay, attempt,
                     )
                     time.sleep(delay)
