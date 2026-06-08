@@ -42,7 +42,7 @@ def test_run_dataset_runs_steps_in_order():
         ),
         patch(
             "flow.dataset_flow.convert_to_parquet",
-            side_effect=lambda df, qid, fdo, url, repo, **kw: call_order.append(("parquet", qid, fdo, url, repo)),
+            side_effect=lambda df, fdo, url, repo, **kw: call_order.append(("parquet", fdo["@id"], fdo, url, repo)),
         ),
     ):
         run_dataset(
