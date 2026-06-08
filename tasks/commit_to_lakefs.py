@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from pathlib import Path
 
 from prefect import task
@@ -62,11 +63,26 @@ def commit_to_lakefs(
         logger.info("No uncommitted lakeFS changes detected on %s/%s", repo, branch)
         return
 
-    try:
-        ref = lakefs_branch.commit(message=commit_message)
-        logger.info("Committed lakeFS change %s on %s/%s", getattr(ref, "id", "<unknown>"), repo, branch)
-    except Exception as e:
-        if "no changes" in str(e).lower():
-            logger.info("No changes to commit on %s/%s", repo, branch)
-        else:
-            raise
+    for attempt in range(1, 4):
+        try:
+            ref = lakefs_branch.commit(message=commit_message)
+            logger.info("Committed lakeFS change %s on %s/%s", getattr(ref, "id", "<unknown>"), repo, branch)
+            break
+        except Exception as e:
+            if "no changes" in str(e).lower():
+                logger.info("No changes to commit on %s/%s", repo, branch)
+                break
+            elif "predicate failed" in str(e).lower():
+                if attempt < 3:
+                    delay = 2 ** attempt
+                    logger.warning(
+                        "Commit conflict on %s/%s (predicate failed), retrying in %ds (attempt %d/3)",
+                        repo, branch, delay, attempt,
+                    )
+                    time.sleep(delay)
+                else:
+                    raise RuntimeError(
+                        f"Commit to {repo}/{branch} failed after 3 attempts due to concurrent modifications"
+                    ) from e
+            else:
+                raise
