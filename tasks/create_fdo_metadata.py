@@ -62,6 +62,7 @@ def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: 
             "name": dataset_name,
             "description": f"Dataset {dataset_name}",
             "url": source_url,
+            "additionalType": lakefs_object_path.split("/")[0],
             "distribution": [
                 {
                     "@type": "DataDownload",
