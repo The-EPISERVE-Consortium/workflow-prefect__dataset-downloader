@@ -27,6 +27,14 @@ REQUIRED_PARAMETERS = {
 
 
 def _require_prefect_api_url() -> str:
+    """Return the configured Prefect API URL.
+
+    Returns:
+        Prefect API URL from the environment.
+
+    Raises:
+        EnvironmentError: If PREFECT_API_URL is not set.
+    """
     prefect_api_url = os.environ.get("PREFECT_API_URL")
     if not prefect_api_url:
         raise EnvironmentError(
@@ -38,6 +46,14 @@ def _require_prefect_api_url() -> str:
 
 
 def _load_registry() -> tuple[dict[str, str], dict[str, dict]]:
+    """Load defaults and dataset entries from the YAML registry.
+
+    Returns:
+        Tuple containing registry defaults and dataset configurations.
+
+    Raises:
+        ValueError: If the registry shape is invalid.
+    """
     with REGISTRY_PATH.open(encoding="utf-8") as infile:
         data = yaml.safe_load(infile) or {}
 
@@ -51,6 +67,11 @@ def _load_registry() -> tuple[dict[str, str], dict[str, dict]]:
 
 
 def get_dataset_keys() -> list[str]:
+    """Return all dataset keys defined in the registry.
+
+    Returns:
+        Sorted dataset keys from the YAML registry.
+    """
     _, datasets = _load_registry()
     return sorted(datasets.keys())
 
@@ -60,6 +81,19 @@ def _validate_dataset_config(
     config: dict,
     defaults: dict[str, str],
 ) -> tuple[str, dict[str, str], bool]:
+    """Validate and normalize one dataset registry entry.
+
+    Args:
+        dataset_key: Dataset key from the YAML registry.
+        config: Dataset-specific registry entry.
+        defaults: Shared default parameters from the YAML registry.
+
+    Returns:
+        Deployment name, merged flow parameters, and daily schedule flag.
+
+    Raises:
+        ValueError: If the dataset configuration is invalid.
+    """
     if not isinstance(config, dict):
         raise ValueError(f"Dataset '{dataset_key}' must be a mapping in deploy/datasets.yaml.")
 
@@ -71,6 +105,8 @@ def _validate_dataset_config(
         raise ValueError(f"Dataset '{dataset_key}' must define a 'parameters' mapping.")
 
     merged_parameters = {**defaults, **parameters}
+    if "description" not in merged_parameters and config.get("description") is not None:
+        merged_parameters["description"] = config["description"]
     merged_parameters.setdefault("dataset_name", dataset_key)
     run_daily = merged_parameters.pop("run_daily", True)
     missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))
@@ -82,7 +118,17 @@ def _validate_dataset_config(
 
 
 def _deploy_dataset(deployment_name: str, parameters: dict[str, str], prefect_api_url: str, run_daily: bool) -> None:
-    """Deploy one dataset configuration to the shared work pool."""
+    """Deploy one dataset configuration to the shared work pool.
+
+    Args:
+        deployment_name: Prefect deployment name.
+        parameters: Flow parameters for the dataset deployment.
+        prefect_api_url: Prefect API URL used by the deployment client.
+        run_daily: Whether to attach the default daily schedule.
+
+    Raises:
+        RuntimeError: If the configured Prefect API URL returns a non-JSON response.
+    """
     os.environ["PREFECT_API_URL"] = prefect_api_url
 
     schedule_kwargs = {"schedules": [CronSchedule(cron="0 1 * * *", timezone="Europe/Berlin")]} if run_daily else {}
@@ -111,7 +157,16 @@ def _deploy_dataset(deployment_name: str, parameters: dict[str, str], prefect_ap
 
 
 def deploy_from_registry(dataset_key: str | None = None) -> None:
-    """Deploy one named dataset or all enabled datasets from deploy/datasets.yaml."""
+    """Deploy one named dataset or all enabled datasets from deploy/datasets.yaml.
+
+    Args:
+        dataset_key: Optional key for a single dataset deployment.
+
+    Raises:
+        EnvironmentError: If PREFECT_API_URL is not set.
+        ValueError: If the requested dataset is unknown or invalid.
+        RuntimeError: If the Prefect API URL is not a valid API endpoint.
+    """
     defaults, datasets = _load_registry()
     prefect_api_url = _require_prefect_api_url()
 

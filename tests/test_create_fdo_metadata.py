@@ -52,11 +52,23 @@ def test_create_fdo_metadata_qid_is_consistent():
 
 
 def test_create_fdo_metadata_name_and_description():
+    """create_fdo_metadata should default the profile description from the dataset name."""
     result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
     assert result["profile"]["name"] == "grippeweb"
     assert result["profile"]["description"] == "Dataset grippeweb"
     assert result["profile"]["url"] == URL
     assert result["profile"]["distribution"][0]["contentUrl"] == URL
+
+
+def test_create_fdo_metadata_uses_custom_description():
+    """create_fdo_metadata should use an explicit profile description when provided."""
+    result = create_fdo_metadata.fn(
+        "grippeweb",
+        URL,
+        "incidence/RKI__grippeweb.tsv",
+        "Weekly GrippeWeb incidence data.",
+    )
+    assert result["profile"]["description"] == "Weekly GrippeWeb incidence data."
 
 
 def test_create_fdo_metadata_component_filename():

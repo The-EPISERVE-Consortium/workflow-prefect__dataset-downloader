@@ -8,12 +8,28 @@ from prefect import task
 
 
 def mint_qid(source_url: str) -> str:
+    """Create a stable QID-like identifier from a source URL filename.
+
+    Args:
+        source_url: URL of the source dataset.
+
+    Returns:
+        Stable QID-like identifier derived from the source filename.
+    """
     filename = Path(source_url.split("?")[0]).name
     digest = hashlib.sha256(filename.encode()).hexdigest()
     return f"Q{int(digest, 16) % 10**13:013d}"
 
 
 def _media_type(object_path: str) -> str:
+    """Infer the media type for a dataset object path.
+
+    Args:
+        object_path: lakeFS object path or filename.
+
+    Returns:
+        Media type matching the object extension, or a binary fallback.
+    """
     return {
         ".tsv": "text/tab-separated-values",
         ".csv": "text/csv",
@@ -23,11 +39,27 @@ def _media_type(object_path: str) -> str:
 
 
 @task
-def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: str) -> dict:
-    """Build an FDO metadata record for the downloaded dataset."""
+def create_fdo_metadata(
+    dataset_name: str,
+    source_url: str,
+    lakefs_object_path: str,
+    description: str | None = None,
+) -> dict:
+    """Build an FDO metadata record for the downloaded dataset.
+
+    Args:
+        dataset_name: Human-readable dataset name.
+        source_url: URL used to download the dataset.
+        lakefs_object_path: Target object path for the raw dataset in lakeFS.
+        description: Optional dataset description for the schema.org profile.
+
+    Returns:
+        FDO metadata record for the downloaded dataset.
+    """
     qid = mint_qid(source_url) + "-raw"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     filename = Path(lakefs_object_path).name
+    profile_description = description or f"Dataset {dataset_name}"
 
     return {
         "@context": [
@@ -60,7 +92,7 @@ def create_fdo_metadata(dataset_name: str, source_url: str, lakefs_object_path: 
             "@type": "Dataset",
             "@id": qid,
             "name": dataset_name,
-            "description": f"Dataset {dataset_name}",
+            "description": profile_description,
             "url": source_url,
             "additionalType": lakefs_object_path.split("/")[0],
             "distribution": [

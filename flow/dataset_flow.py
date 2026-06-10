@@ -19,6 +19,18 @@ _EXTENSION_DELIMITERS = {
 
 
 def _resolve_delimiter(lakefs_object_path: str, override: str | None) -> str:
+    """Resolve the source file delimiter from configuration or object path.
+
+    Args:
+        lakefs_object_path: Target lakeFS object path for the source file.
+        override: Explicit delimiter from configuration, when provided.
+
+    Returns:
+        The delimiter to use when parsing the downloaded dataset.
+
+    Raises:
+        ValueError: If no override is set and the object extension is unsupported.
+    """
     if override is not None:
         return override
     ext = Path(lakefs_object_path).suffix.lower()
@@ -31,7 +43,14 @@ def _resolve_delimiter(lakefs_object_path: str, override: str | None) -> str:
 
 
 def _validate_required_parameters(params: dict[str, str]) -> None:
-    """Raise a clear error if a required flow parameter is missing or blank."""
+    """Raise a clear error if a required flow parameter is missing or blank.
+
+    Args:
+        params: Mapping of required parameter names to provided values.
+
+    Raises:
+        ValueError: If any required parameter is missing or blank.
+    """
     missing = [name for name, value in params.items() if value is None or value == ""]
     if missing:
         missing_list = ", ".join(sorted(missing))
@@ -55,8 +74,28 @@ def run_dataset(
     source_delimiter: str | None = None,
     source_skiprows: int = 0,
     mariadb_primary_key: str | None = None,
+    description: str | None = None,
 ) -> None:
-    """Download a dataset, commit it to lakeFS with FDO metadata, then load it into MariaDB."""
+    """Download a dataset, publish metadata, and load it into storage targets.
+
+    Args:
+        dataset_name: Dataset key or name used in generated metadata.
+        source_url: URL used to download the source dataset.
+        lakefs_repo: lakeFS repository for raw data.
+        lakefs_branch: lakeFS branch for raw data commits.
+        lakefs_object_path: Target path for the raw dataset object in lakeFS.
+        lakefs_commit_message: Commit message for the raw lakeFS commit.
+        mariadb_table: MariaDB table that receives the parsed dataset.
+        mariadb_database: MariaDB database that contains the destination table.
+        lakefs_processed_repo: lakeFS repository for converted Parquet data.
+        source_delimiter: Optional delimiter override for parsing the source file.
+        source_skiprows: Number of leading source rows to skip while parsing.
+        mariadb_primary_key: Optional primary key column for MariaDB writes.
+        description: Optional dataset description for generated FDO metadata.
+
+    Raises:
+        ValueError: If required parameters are missing or the delimiter cannot be inferred.
+    """
     _validate_required_parameters(
         {
             "dataset_name": dataset_name,
@@ -73,7 +112,7 @@ def run_dataset(
     delimiter = _resolve_delimiter(lakefs_object_path, source_delimiter)
     local_path = str(Path(tempfile.gettempdir()) / Path(lakefs_object_path).name)
     download_file(source_url, local_path)
-    fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path)
+    fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path, description)
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
