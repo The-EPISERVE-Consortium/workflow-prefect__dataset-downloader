@@ -195,6 +195,25 @@ def test_convert_to_parquet_preserves_profile_description():
     assert stored_fdo["profile"]["description"] == "Weekly GrippeWeb participant reports and estimated incidence."
 
 
+def test_convert_to_parquet_preserves_profile_display_name():
+    """convert_to_parquet should keep the raw FDO profile display name in the processed FDO."""
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
+    fdo = {
+        **SAMPLE_FDO_WITH_PROFILE,
+        "profile": {
+            **SAMPLE_FDO_WITH_PROFILE["profile"],
+            "display_name": "GrippeWeb Weekly Report Data",
+        },
+    }
+
+    with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
+        convert_to_parquet.fn(SAMPLE_DF, fdo, SOURCE_URL, "data-processed")
+
+    fdo_path = f"{SHARD}/{CANONICAL_QID}.fdo.json"
+    stored_fdo = json.loads(uploaded[fdo_path]["data"])
+    assert stored_fdo["profile"]["display_name"] == "GrippeWeb Weekly Report Data"
+
+
 def test_convert_to_parquet_sets_content_size_in_distribution():
     mock_repo, mock_branch, uploaded = _make_mock_branch()
 

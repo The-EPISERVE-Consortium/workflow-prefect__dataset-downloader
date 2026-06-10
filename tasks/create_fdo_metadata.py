@@ -44,6 +44,7 @@ def create_fdo_metadata(
     source_url: str,
     lakefs_object_path: str,
     description: str | None = None,
+    display_name: str | None = None,
 ) -> dict:
     """Build an FDO metadata record for the downloaded dataset.
 
@@ -52,6 +53,7 @@ def create_fdo_metadata(
         source_url: URL used to download the dataset.
         lakefs_object_path: Target object path for the raw dataset in lakeFS.
         description: Optional dataset description for the schema.org profile.
+        display_name: Optional human-facing display name for the schema.org profile.
 
     Returns:
         FDO metadata record for the downloaded dataset.
@@ -60,6 +62,7 @@ def create_fdo_metadata(
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     filename = Path(lakefs_object_path).name
     profile_description = description or f"Dataset {dataset_name}"
+    profile_display_name = display_name or dataset_name
 
     return {
         "@context": [
@@ -92,6 +95,7 @@ def create_fdo_metadata(
             "@type": "Dataset",
             "@id": qid,
             "name": dataset_name,
+            "display_name": profile_display_name,
             "description": profile_description,
             "url": source_url,
             "additionalType": lakefs_object_path.split("/")[0],

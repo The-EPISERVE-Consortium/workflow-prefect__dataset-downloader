@@ -94,6 +94,39 @@ def test_run_dataset_passes_description_to_fdo_metadata():
         "https://example.com/data.tsv",
         "RAW/RKI/grippeweb.tsv",
         "Weekly GrippeWeb incidence data.",
+        None,
+    )
+
+
+def test_run_dataset_passes_display_name_to_fdo_metadata():
+    """run_dataset should pass the optional dataset display name into FDO metadata creation."""
+    with (
+        patch("flow.dataset_flow.download_file"),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO) as mock_create_fdo,
+        patch("flow.dataset_flow.commit_to_lakefs"),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
+        patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.convert_to_parquet"),
+    ):
+        run_dataset.fn(
+            dataset_name="grippeweb",
+            source_url="https://example.com/data.tsv",
+            lakefs_repo="sandbox",
+            lakefs_branch="main",
+            lakefs_object_path="RAW/RKI/grippeweb.tsv",
+            lakefs_commit_message="new version from RKI",
+            mariadb_table="grippeweb",
+            mariadb_database="test",
+            lakefs_processed_repo="data-processed",
+            display_name="GrippeWeb Weekly Report Data",
+        )
+
+    mock_create_fdo.assert_called_once_with(
+        "grippeweb",
+        "https://example.com/data.tsv",
+        "RAW/RKI/grippeweb.tsv",
+        None,
+        "GrippeWeb Weekly Report Data",
     )
 
 

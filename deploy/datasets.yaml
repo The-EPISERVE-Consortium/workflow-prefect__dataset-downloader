@@ -8,6 +8,7 @@ defaults:
 datasets:
   grippeweb:
     enabled: true
+    display_name: GrippeWeb Weekly Report Data
     description: Weekly GrippeWeb participant reports and estimated incidence for acute respiratory illness in Germany. The dataset is stratified by season, illness type, age group, region, and calendar week.
     deployment_name: download__grippeweb
     parameters:
@@ -16,6 +17,7 @@ datasets:
       mariadb_table: grippeweb
   influenza_cases_germany:
     enabled: true
+    display_name: Laboratory-Confirmed Influenza Cases in Germany
     description: Weekly laboratory-confirmed influenza case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
     deployment_name: download__influenza_cases_germany
     parameters:
@@ -24,6 +26,7 @@ datasets:
       mariadb_table: influenza_cases_germany
   corona_incidence_germany:
     enabled: true
+    display_name: Germany COVID-19 7-Day Incidence
     description: Germany-wide COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date and age group and includes cumulative, new, and 7-day case metrics.
     deployment_name: download__corona_incidence_germany
     parameters:
@@ -32,6 +35,7 @@ datasets:
       mariadb_table: corona_incidence_germany
   corona_incidence_states:
     enabled: true
+    display_name: Federal State COVID-19 7-Day Incidence
     description: Federal-state COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date, federal state, and age group and includes cumulative, new, and 7-day case metrics.
     deployment_name: download__corona_incidence_states
     parameters:
@@ -40,6 +44,7 @@ datasets:
       mariadb_table: corona_incidence_states
   rsv_cases_germany:
     enabled: true
+    display_name: Respiratory Syncytial Virus Cases in Germany
     description: Weekly respiratory syncytial virus case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
     deployment_name: download__rsv_cases_germany
     parameters:
@@ -48,6 +53,7 @@ datasets:
       mariadb_table: rsv_cases_germany
   are_consultation_incidence:
     enabled: true
+    display_name: Acute Respiratory Illness Consultation Incidence
     description: Weekly consultation incidence for acute respiratory illnesses in Germany. The dataset is stratified by season, calendar week, federal state, and age group.
     deployment_name: download__are_consultation_incidence
     parameters:
@@ -56,6 +62,7 @@ datasets:
       mariadb_table: are_consultation_incidence
   wastewater_surveillance_aggregate:
     enabled: true
+    display_name: AMELAG Aggregated Wastewater Surveillance
     description: Aggregated AMELAG wastewater surveillance time series for respiratory pathogens. The dataset includes viral load, normalized viral load, model estimates, uncertainty bounds, sample counts, and covered population share.
     deployment_name: download__wastewater_surveillance_aggregate
     parameters:
@@ -64,6 +71,7 @@ datasets:
       mariadb_table: wastewater_surveillance_aggregate
   wastewater_surveillance_stations:
     enabled: true
+    display_name: AMELAG Site-Level Wastewater Surveillance
     description: Site-level AMELAG wastewater surveillance measurements for respiratory pathogens. The dataset includes location, federal state, date, viral load, normalized viral load, model estimates, population coverage, lab-change status, and detection-limit flags.
     deployment_name: download__wastewater_surveillance_stations
     parameters:
@@ -72,6 +80,7 @@ datasets:
       mariadb_table: wastewater_surveillance_stations
   notaufnahme_surveillance:
     enabled: true
+    display_name: Emergency Department Syndrome Surveillance
     description: Emergency department syndrome surveillance time series from RKI and the AKTIN emergency department registry. The dataset includes relative case shares, 7-day moving averages, expected values, uncertainty bounds, age groups, syndrome categories, and reporting emergency department counts.
     deployment_name: download__notaufnahme_surveillance
     parameters:
@@ -80,6 +89,7 @@ datasets:
       mariadb_table: notaufnahme_surveillance
   sari_hospitalization_incidence:
     enabled: true
+    display_name: SARI Hospitalization Incidence
     description: Weekly severe acute respiratory infection hospitalization incidence in Germany. The dataset is stratified by season, calendar week, age group, and SARI category.
     deployment_name: download__sari_hospitalization_incidence
     parameters:
@@ -88,6 +98,7 @@ datasets:
       mariadb_table: sari_hospitalization_incidence
   covid_hospitalizations:
     enabled: true
+    display_name: COVID-19 Hospitalizations in Germany
     description: COVID-19 hospitalization counts and incidence in Germany from RKI surveillance data. The dataset is stratified by date, federal state, and age group and includes fixed, updated, and nowcast-adjusted 7-day hospitalization metrics.
     deployment_name: download__covid_hospitalizations
     parameters:
@@ -96,6 +107,7 @@ datasets:
       mariadb_table: covid_hospitalizations
   weather_berlin_daily:
     enabled: true
+    display_name: Berlin Daily Weather
     description: Daily Open-Meteo weather data for Berlin. The dataset includes maximum, minimum, and mean 2 m air temperature for the configured recent date window.
     deployment_name: download__weather_berlin_daily
     parameters:
@@ -107,6 +119,7 @@ datasets:
       mariadb_primary_key: time
   weather_berlin_hourly:
     enabled: true
+    display_name: Berlin Hourly Weather
     description: Hourly Open-Meteo weather data for Berlin. The dataset includes 2 m air temperature, relative humidity, and precipitation for the configured recent date window.
     deployment_name: download__weather_berlin_hourly
     parameters:

@@ -38,8 +38,9 @@ Deploy all enabled datasets from `deploy/datasets.yaml`:
 PREFECT_API_URL=https://<your-prefect-server>/api python -m deploy --all
 ```
 
-Add or change deployments by editing `deploy/datasets.yaml`. Dataset entries may include an optional
-`description` field; if omitted, generated metadata uses `Dataset <dataset_name>`.
+Add or change deployments by editing `deploy/datasets.yaml`. Dataset entries may include optional
+`display_name` and `description` fields; if omitted, generated metadata uses the dataset key as the
+display name and `Dataset <dataset_name>` as the description.
 
 ## Configured datasets
 

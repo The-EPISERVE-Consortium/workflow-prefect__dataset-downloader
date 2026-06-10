@@ -105,6 +105,8 @@ def _validate_dataset_config(
         raise ValueError(f"Dataset '{dataset_key}' must define a 'parameters' mapping.")
 
     merged_parameters = {**defaults, **parameters}
+    if "display_name" not in merged_parameters and config.get("display_name") is not None:
+        merged_parameters["display_name"] = config["display_name"]
     if "description" not in merged_parameters and config.get("description") is not None:
         merged_parameters["description"] = config["description"]
     merged_parameters.setdefault("dataset_name", dataset_key)

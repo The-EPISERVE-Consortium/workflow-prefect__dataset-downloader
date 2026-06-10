@@ -74,6 +74,7 @@ def run_dataset(
     source_delimiter: str | None = None,
     source_skiprows: int = 0,
     mariadb_primary_key: str | None = None,
+    display_name: str | None = None,
     description: str | None = None,
 ) -> None:
     """Download a dataset, publish metadata, and load it into storage targets.
@@ -91,6 +92,7 @@ def run_dataset(
         source_delimiter: Optional delimiter override for parsing the source file.
         source_skiprows: Number of leading source rows to skip while parsing.
         mariadb_primary_key: Optional primary key column for MariaDB writes.
+        display_name: Optional display name for generated FDO metadata.
         description: Optional dataset description for generated FDO metadata.
 
     Raises:
@@ -112,7 +114,7 @@ def run_dataset(
     delimiter = _resolve_delimiter(lakefs_object_path, source_delimiter)
     local_path = str(Path(tempfile.gettempdir()) / Path(lakefs_object_path).name)
     download_file(source_url, local_path)
-    fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path, description)
+    fdo = create_fdo_metadata(dataset_name, source_url, lakefs_object_path, description, display_name)
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
