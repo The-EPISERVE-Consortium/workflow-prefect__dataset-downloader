@@ -8,7 +8,7 @@ defaults:
 datasets:
   grippeweb:
     enabled: true
-    description: Weekly GrippeWeb estimates of acute respiratory illness activity in Germany.
+    description: Weekly GrippeWeb participant reports and estimated incidence for acute respiratory illness in Germany. The dataset is stratified by season, illness type, age group, region, and calendar week.
     deployment_name: download__grippeweb
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/GrippeWeb_Daten_des_Wochenberichts/refs/heads/main/GrippeWeb_Daten_des_Wochenberichts.tsv
@@ -16,7 +16,7 @@ datasets:
       mariadb_table: grippeweb
   influenza_cases_germany:
     enabled: true
-    description: Reported influenza cases in Germany from RKI infectious disease surveillance.
+    description: Weekly laboratory-confirmed influenza case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
     deployment_name: download__influenza_cases_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Influenzafaelle_in_Deutschland/refs/heads/main/IfSG_Influenzafaelle.tsv
@@ -24,7 +24,7 @@ datasets:
       mariadb_table: influenza_cases_germany
   corona_incidence_germany:
     enabled: true
-    description: Germany-wide COVID-19 7-day incidence time series from RKI surveillance data.
+    description: Germany-wide COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date and age group and includes cumulative, new, and 7-day case metrics.
     deployment_name: download__corona_incidence_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Deutschland.csv
@@ -32,7 +32,7 @@ datasets:
       mariadb_table: corona_incidence_germany
   corona_incidence_states:
     enabled: true
-    description: German federal state COVID-19 7-day incidence time series from RKI surveillance data.
+    description: Federal-state COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date, federal state, and age group and includes cumulative, new, and 7-day case metrics.
     deployment_name: download__corona_incidence_states
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
@@ -40,7 +40,7 @@ datasets:
       mariadb_table: corona_incidence_states
   rsv_cases_germany:
     enabled: true
-    description: Reported respiratory syncytial virus cases in Germany from RKI infectious disease surveillance.
+    description: Weekly respiratory syncytial virus case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
     deployment_name: download__rsv_cases_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Respiratorische_Synzytialvirusfaelle_in_Deutschland/refs/heads/main/IfSG_RSVfaelle.tsv
@@ -48,7 +48,7 @@ datasets:
       mariadb_table: rsv_cases_germany
   are_consultation_incidence:
     enabled: true
-    description: Weekly consultation incidence for acute respiratory illnesses in Germany.
+    description: Weekly consultation incidence for acute respiratory illnesses in Germany. The dataset is stratified by season, calendar week, federal state, and age group.
     deployment_name: download__are_consultation_incidence
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/ARE-Konsultationsinzidenz/refs/heads/main/ARE-Konsultationsinzidenz.tsv
@@ -56,7 +56,7 @@ datasets:
       mariadb_table: are_consultation_incidence
   wastewater_surveillance_aggregate:
     enabled: true
-    description: Aggregated SARS-CoV-2 wastewater surveillance trend data from the AMELAG network.
+    description: Aggregated AMELAG wastewater surveillance time series for respiratory pathogens. The dataset includes viral load, normalized viral load, model estimates, uncertainty bounds, sample counts, and covered population share.
     deployment_name: download__wastewater_surveillance_aggregate
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_aggregierte_kurve.tsv
@@ -64,7 +64,7 @@ datasets:
       mariadb_table: wastewater_surveillance_aggregate
   wastewater_surveillance_stations:
     enabled: true
-    description: Site-level SARS-CoV-2 wastewater surveillance measurements from the AMELAG network.
+    description: Site-level AMELAG wastewater surveillance measurements for respiratory pathogens. The dataset includes location, federal state, date, viral load, normalized viral load, model estimates, population coverage, lab-change status, and detection-limit flags.
     deployment_name: download__wastewater_surveillance_stations
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_einzelstandorte.tsv
@@ -72,7 +72,7 @@ datasets:
       mariadb_table: wastewater_surveillance_stations
   notaufnahme_surveillance:
     enabled: true
-    description: Emergency department syndrome surveillance time series for respiratory and related presentations.
+    description: Emergency department syndrome surveillance time series from RKI and the AKTIN emergency department registry. The dataset includes relative case shares, 7-day moving averages, expected values, uncertainty bounds, age groups, syndrome categories, and reporting emergency department counts.
     deployment_name: download__notaufnahme_surveillance
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Daten_der_Notaufnahmesurveillance/refs/heads/main/Notaufnahmesurveillance_Zeitreihen_Syndrome.tsv
@@ -80,7 +80,7 @@ datasets:
       mariadb_table: notaufnahme_surveillance
   sari_hospitalization_incidence:
     enabled: true
-    description: Weekly incidence of severe acute respiratory infection hospitalizations in Germany.
+    description: Weekly severe acute respiratory infection hospitalization incidence in Germany. The dataset is stratified by season, calendar week, age group, and SARI category.
     deployment_name: download__sari_hospitalization_incidence
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/SARI-Hospitalisierungsinzidenz/refs/heads/main/SARI-Hospitalisierungsinzidenz.tsv
@@ -88,7 +88,7 @@ datasets:
       mariadb_table: sari_hospitalization_incidence
   covid_hospitalizations:
     enabled: true
-    description: Adjusted COVID-19 hospitalization time series for Germany.
+    description: COVID-19 hospitalization counts and incidence in Germany from RKI surveillance data. The dataset is stratified by date, federal state, and age group and includes fixed, updated, and nowcast-adjusted 7-day hospitalization metrics.
     deployment_name: download__covid_hospitalizations
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland/refs/heads/main/Aktuell_Deutschland_adjustierte-COVID-19-Hospitalisierungen.csv
@@ -96,7 +96,7 @@ datasets:
       mariadb_table: covid_hospitalizations
   weather_berlin_daily:
     enabled: true
-    description: Daily Berlin weather observations and forecasts from the Open-Meteo API.
+    description: Daily Open-Meteo weather data for Berlin. The dataset includes maximum, minimum, and mean 2 m air temperature for the configured recent date window.
     deployment_name: download__weather_berlin_daily
     parameters:
       source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&past_days=10&format=csv&timezone=Europe%2FBerlin"
@@ -107,7 +107,7 @@ datasets:
       mariadb_primary_key: time
   weather_berlin_hourly:
     enabled: true
-    description: Hourly Berlin weather observations and forecasts from the Open-Meteo API.
+    description: Hourly Open-Meteo weather data for Berlin. The dataset includes 2 m air temperature, relative humidity, and precipitation for the configured recent date window.
     deployment_name: download__weather_berlin_hourly
     parameters:
       source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m,relative_humidity_2m,precipitation&past_days=3&format=csv&timezone=Europe%2FBerlin"
