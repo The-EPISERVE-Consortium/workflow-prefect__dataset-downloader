@@ -2,6 +2,8 @@
 
 import io
 import json
+import random
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -112,11 +114,26 @@ def convert_to_parquet(
         logger.info("No uncommitted lakeFS changes detected on %s/%s", lakefs_repo, lakefs_branch)
         return
 
-    try:
-        ref = branch.commit(message=f"Parquet conversion of {canonical_qid}")
-        logger.info("Committed parquet %s on %s/%s", getattr(ref, "id", "<unknown>"), lakefs_repo, lakefs_branch)
-    except Exception as e:
-        if "no changes" in str(e).lower():
-            logger.info("No changes to commit on %s/%s", lakefs_repo, lakefs_branch)
-        else:
-            raise
+    for attempt in range(1, 4):
+        try:
+            ref = branch.commit(message=f"Parquet conversion of {canonical_qid}")
+            logger.info("Committed parquet %s on %s/%s", getattr(ref, "id", "<unknown>"), lakefs_repo, lakefs_branch)
+            break
+        except Exception as e:
+            if "no changes" in str(e).lower():
+                logger.info("No changes to commit on %s/%s", lakefs_repo, lakefs_branch)
+                break
+            elif "predicate failed" in str(e).lower():
+                if attempt < 3:
+                    delay = random.uniform(3, 10)
+                    logger.warning(
+                        "Commit conflict on %s/%s (predicate failed), retrying in %.1fs (attempt %d/3)",
+                        lakefs_repo, lakefs_branch, delay, attempt,
+                    )
+                    time.sleep(delay)
+                else:
+                    raise RuntimeError(
+                        f"Commit to {lakefs_repo}/{lakefs_branch} failed after 3 attempts due to concurrent modifications"
+                    ) from e
+            else:
+                raise
