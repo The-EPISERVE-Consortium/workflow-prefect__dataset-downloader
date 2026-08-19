@@ -20,47 +20,47 @@ def _sha256_file(path: str) -> str:
     return digest.hexdigest()
 
 
-def _read_previous_kernel(lakefs_repo: str, lakefs_branch: str, lakefs_object_path: str) -> dict:
-    """Return the kernel block of the previously committed FDO sidecar, or {} if none exists."""
+def _read_previous_provenance(lakefs_repo: str, lakefs_branch: str, lakefs_object_path: str) -> dict:
+    """Return the provenance block of the previously committed FDO sidecar, or {} if none exists."""
     fdo_object_path = str(Path(lakefs_object_path).parent / (Path(lakefs_object_path).stem + ".fdo.json"))
     branch = _get_lakefs_repository(lakefs_repo).branch(lakefs_branch)
     try:
         with branch.object(fdo_object_path).reader() as f:
             fdo = json.loads(f.read())
-        return fdo.get("kernel", {})
+        return fdo.get("provenance", {})
     except Exception:
         return {}
 
 
 @task
-def resolve_content_changed_at(
+def resolve_source_changed_at(
     local_path: str,
     lakefs_repo: str,
     lakefs_branch: str,
     lakefs_object_path: str,
 ) -> tuple[str, str]:
-    """Determine the content hash of the newly downloaded file and the timestamp
-    of the run in which the content last actually changed.
+    """Determine the content hash of the newly downloaded source file and the
+    timestamp of the run in which the source data last actually changed.
 
-    Compares the new file's sha256 against the content_hash recorded in the
-    previously committed FDO sidecar. If they match, the previous
-    content_changed_at is carried forward; otherwise (including on the first
-    run) content_changed_at is stamped with the current time.
+    Compares the new file's sha256 against the source_content_hash recorded in
+    the previously committed FDO sidecar's provenance block. If they match,
+    the previous source_changed_at is carried forward; otherwise (including on
+    the first run) source_changed_at is stamped with the current time.
 
     Returns:
-        (content_hash, content_changed_at)
+        (source_content_hash, source_changed_at)
     """
     logger = get_logger(__name__)
-    content_hash = _sha256_file(local_path)
+    source_content_hash = _sha256_file(local_path)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    previous_kernel = _read_previous_kernel(lakefs_repo, lakefs_branch, lakefs_object_path)
-    previous_hash = previous_kernel.get("content_hash", "")
-    previous_changed_at = previous_kernel.get("content_changed_at", "")
+    previous_provenance = _read_previous_provenance(lakefs_repo, lakefs_branch, lakefs_object_path)
+    previous_hash = previous_provenance.get("source_content_hash", "")
+    previous_changed_at = previous_provenance.get("source_changed_at", "")
 
-    if previous_hash and previous_changed_at and previous_hash == content_hash:
-        logger.info("Content unchanged, carrying forward content_changed_at=%s", previous_changed_at)
-        return content_hash, previous_changed_at
+    if previous_hash and previous_changed_at and previous_hash == source_content_hash:
+        logger.info("Source content unchanged, carrying forward source_changed_at=%s", previous_changed_at)
+        return source_content_hash, previous_changed_at
 
-    logger.info("Content changed (or first run), stamping content_changed_at=%s", now)
-    return content_hash, now
+    logger.info("Source content changed (or first run), stamping source_changed_at=%s", now)
+    return source_content_hash, now

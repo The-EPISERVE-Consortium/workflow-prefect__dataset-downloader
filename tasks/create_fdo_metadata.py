@@ -45,8 +45,8 @@ def create_fdo_metadata(
     lakefs_object_path: str,
     description: str | None = None,
     display_name: str | None = None,
-    content_hash: str | None = None,
-    content_changed_at: str | None = None,
+    source_content_hash: str | None = None,
+    source_changed_at: str | None = None,
 ) -> dict:
     """Build an FDO metadata record for the downloaded dataset.
 
@@ -56,10 +56,11 @@ def create_fdo_metadata(
         lakefs_object_path: Target object path for the raw dataset in lakeFS.
         description: Optional dataset description for the schema.org profile.
         display_name: Optional human-facing display name for the schema.org profile.
-        content_hash: Optional sha256 of the downloaded file, for change detection.
-        content_changed_at: Optional timestamp of the run in which the data's
-            content last actually changed (as opposed to `modified`, which is
-            stamped on every run regardless of whether the content changed).
+        source_content_hash: Optional sha256 of the downloaded source file, for
+            change detection against future runs.
+        source_changed_at: Optional timestamp of the run in which the source
+            data last actually changed (as opposed to `kernel.modified`, which
+            is stamped on every run regardless of whether the source changed).
 
     Returns:
         FDO metadata record for the downloaded dataset.
@@ -88,8 +89,6 @@ def create_fdo_metadata(
             "kernelVersion": "v1",
             "immutable": False,
             "modified": now,
-            "content_hash": content_hash or "",
-            "content_changed_at": content_changed_at or now,
             "fdo:hasComponent": [
                 {
                     "@id": f"#{filename}",
@@ -117,5 +116,7 @@ def create_fdo_metadata(
         "provenance": {
             "prov:generatedAtTime": now,
             "prov:wasAttributedTo": "EPISERVE Consortium dataset downloader",
+            "source_content_hash": source_content_hash or "",
+            "source_changed_at": source_changed_at or now,
         },
     }

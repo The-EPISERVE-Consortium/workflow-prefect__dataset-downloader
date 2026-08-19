@@ -8,7 +8,7 @@ from prefect import flow
 from tasks.commit_to_lakefs import commit_to_lakefs
 from tasks.convert_to_parquet import convert_to_parquet
 from tasks.create_fdo_metadata import create_fdo_metadata
-from tasks.detect_content_change import resolve_content_changed_at
+from tasks.detect_content_change import resolve_source_changed_at
 from tasks.download_tsv import download_file
 from tasks.save_locally import parse_dataset
 from tasks.store_to_mariadb import store_to_mariadb
@@ -115,12 +115,12 @@ def run_dataset(
     delimiter = _resolve_delimiter(lakefs_object_path, source_delimiter)
     local_path = str(Path(tempfile.gettempdir()) / Path(lakefs_object_path).name)
     download_file(source_url, local_path)
-    content_hash, content_changed_at = resolve_content_changed_at(
+    source_content_hash, source_changed_at = resolve_source_changed_at(
         local_path, lakefs_repo, lakefs_branch, lakefs_object_path
     )
     fdo = create_fdo_metadata(
         dataset_name, source_url, lakefs_object_path, description, display_name,
-        content_hash, content_changed_at,
+        source_content_hash, source_changed_at,
     )
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)

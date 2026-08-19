@@ -91,25 +91,25 @@ def test_create_fdo_metadata_component_filename():
     assert component["mediaType"] == "text/tab-separated-values"
 
 
-def test_create_fdo_metadata_defaults_content_changed_at_to_now():
-    """When no content_changed_at is passed, it should default to the same run timestamp as modified."""
+def test_create_fdo_metadata_defaults_source_changed_at_to_now():
+    """When no source_changed_at is passed, it should default to the same run timestamp as modified."""
     result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
-    assert result["kernel"]["content_changed_at"] == result["kernel"]["modified"]
-    assert result["kernel"]["content_hash"] == ""
+    assert result["provenance"]["source_changed_at"] == result["kernel"]["modified"]
+    assert result["provenance"]["source_content_hash"] == ""
 
 
-def test_create_fdo_metadata_uses_explicit_content_change_fields():
-    """When content_hash/content_changed_at are passed (unchanged content), they should be used as-is."""
+def test_create_fdo_metadata_uses_explicit_source_change_fields():
+    """When source_content_hash/source_changed_at are passed (unchanged content), they should be used as-is."""
     result = create_fdo_metadata.fn(
         "grippeweb",
         URL,
         "incidence/RKI__grippeweb.tsv",
-        content_hash="abc123",
-        content_changed_at="2026-05-01T00:00:00Z",
+        source_content_hash="abc123",
+        source_changed_at="2026-05-01T00:00:00Z",
     )
-    assert result["kernel"]["content_hash"] == "abc123"
-    assert result["kernel"]["content_changed_at"] == "2026-05-01T00:00:00Z"
-    assert result["kernel"]["content_changed_at"] != result["kernel"]["modified"]
+    assert result["provenance"]["source_content_hash"] == "abc123"
+    assert result["provenance"]["source_changed_at"] == "2026-05-01T00:00:00Z"
+    assert result["provenance"]["source_changed_at"] != result["kernel"]["modified"]
 
 
 def test_media_type_csv():

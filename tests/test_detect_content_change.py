@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from tasks.detect_content_change import _sha256_file, resolve_content_changed_at
+from tasks.detect_content_change import _sha256_file, resolve_source_changed_at
 
 
 def _mock_object(data: dict | None):
@@ -35,61 +35,61 @@ def test_sha256_file_differs_on_content_change(tmp_path: Path):
 
 
 def test_first_run_stamps_now(tmp_path: Path):
-    """No previous FDO in lakeFS -> content_changed_at defaults to now."""
+    """No previous FDO in lakeFS -> source_changed_at defaults to now."""
     f = tmp_path / "data.tsv"
     f.write_text("col1\tcol2\n1\t2\n", encoding="utf-8")
     obj = _mock_object(None)
 
     with patch("tasks.detect_content_change._get_lakefs_repository") as mock_repo:
         mock_repo.return_value.branch.return_value.object.return_value = obj
-        content_hash, content_changed_at = resolve_content_changed_at.fn(
+        source_content_hash, source_changed_at = resolve_source_changed_at.fn(
             str(f), "sandbox", "main", "RAW/RKI/grippeweb.tsv"
         )
 
-    assert content_hash == _sha256_file(str(f))
-    assert content_changed_at  # non-empty, stamped to "now"
+    assert source_content_hash == _sha256_file(str(f))
+    assert source_changed_at  # non-empty, stamped to "now"
 
 
 def test_unchanged_content_carries_forward_previous_timestamp(tmp_path: Path):
     f = tmp_path / "data.tsv"
     f.write_text("col1\tcol2\n1\t2\n", encoding="utf-8")
-    content_hash = _sha256_file(str(f))
+    source_content_hash = _sha256_file(str(f))
     previous_fdo = {
-        "kernel": {
-            "content_hash": content_hash,
-            "content_changed_at": "2026-05-01T00:00:00Z",
+        "provenance": {
+            "source_content_hash": source_content_hash,
+            "source_changed_at": "2026-05-01T00:00:00Z",
         }
     }
     obj = _mock_object(previous_fdo)
 
     with patch("tasks.detect_content_change._get_lakefs_repository") as mock_repo:
         mock_repo.return_value.branch.return_value.object.return_value = obj
-        result_hash, content_changed_at = resolve_content_changed_at.fn(
+        result_hash, source_changed_at = resolve_source_changed_at.fn(
             str(f), "sandbox", "main", "RAW/RKI/grippeweb.tsv"
         )
 
-    assert result_hash == content_hash
-    assert content_changed_at == "2026-05-01T00:00:00Z"
+    assert result_hash == source_content_hash
+    assert source_changed_at == "2026-05-01T00:00:00Z"
 
 
 def test_changed_content_stamps_new_timestamp(tmp_path: Path):
     f = tmp_path / "data.tsv"
     f.write_text("col1\tcol2\n1\t2\n", encoding="utf-8")
     previous_fdo = {
-        "kernel": {
-            "content_hash": "some-other-hash",
-            "content_changed_at": "2026-05-01T00:00:00Z",
+        "provenance": {
+            "source_content_hash": "some-other-hash",
+            "source_changed_at": "2026-05-01T00:00:00Z",
         }
     }
     obj = _mock_object(previous_fdo)
 
     with patch("tasks.detect_content_change._get_lakefs_repository") as mock_repo:
         mock_repo.return_value.branch.return_value.object.return_value = obj
-        _, content_changed_at = resolve_content_changed_at.fn(
+        _, source_changed_at = resolve_source_changed_at.fn(
             str(f), "sandbox", "main", "RAW/RKI/grippeweb.tsv"
         )
 
-    assert content_changed_at != "2026-05-01T00:00:00Z"
+    assert source_changed_at != "2026-05-01T00:00:00Z"
 
 
 def test_reads_fdo_sidecar_path(tmp_path: Path):
@@ -100,6 +100,6 @@ def test_reads_fdo_sidecar_path(tmp_path: Path):
     with patch("tasks.detect_content_change._get_lakefs_repository") as mock_repo:
         branch_mock = mock_repo.return_value.branch.return_value
         branch_mock.object.return_value = obj
-        resolve_content_changed_at.fn(str(f), "sandbox", "main", "incidence/RKI__grippeweb.tsv")
+        resolve_source_changed_at.fn(str(f), "sandbox", "main", "incidence/RKI__grippeweb.tsv")
 
     branch_mock.object.assert_called_once_with("incidence/RKI__grippeweb.fdo.json")
