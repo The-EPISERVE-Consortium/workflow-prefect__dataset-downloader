@@ -95,19 +95,16 @@ def test_create_fdo_metadata_defaults_source_changed_at_to_now():
     """When no source_changed_at is passed, it should default to the same run timestamp as modified."""
     result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
     assert result["provenance"]["source_changed_at"] == result["kernel"]["modified"]
-    assert result["provenance"]["source_content_hash"] == ""
 
 
-def test_create_fdo_metadata_uses_explicit_source_change_fields():
-    """When source_content_hash/source_changed_at are passed (unchanged content), they should be used as-is."""
+def test_create_fdo_metadata_uses_explicit_source_changed_at():
+    """When source_changed_at is passed (unchanged content), it should be used as-is."""
     result = create_fdo_metadata.fn(
         "grippeweb",
         URL,
         "incidence/RKI__grippeweb.tsv",
-        source_content_hash="abc123",
         source_changed_at="2026-05-01T00:00:00Z",
     )
-    assert result["provenance"]["source_content_hash"] == "abc123"
     assert result["provenance"]["source_changed_at"] == "2026-05-01T00:00:00Z"
     assert result["provenance"]["source_changed_at"] != result["kernel"]["modified"]
 

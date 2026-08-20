@@ -32,7 +32,7 @@ def test_run_dataset_runs_steps_in_order():
             "flow.dataset_flow.resolve_source_changed_at",
             side_effect=lambda local_path, repo, branch, object_path: call_order.append(
                 ("content_change", local_path, repo, branch, object_path)
-            ) or ("hash123", "2026-06-01T00:00:00Z"),
+            ) or "2026-06-01T00:00:00Z",
         ),
         patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
         patch(
@@ -77,7 +77,7 @@ def test_run_dataset_passes_description_to_fdo_metadata():
     """run_dataset should pass the optional dataset description into FDO metadata creation."""
     with (
         patch("flow.dataset_flow.download_file"),
-        patch("flow.dataset_flow.resolve_source_changed_at", return_value=("hash123", "2026-06-01T00:00:00Z")),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
         patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO) as mock_create_fdo,
         patch("flow.dataset_flow.commit_to_lakefs"),
         patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
@@ -103,7 +103,6 @@ def test_run_dataset_passes_description_to_fdo_metadata():
         "RAW/RKI/grippeweb.tsv",
         "Weekly GrippeWeb incidence data.",
         None,
-        "hash123",
         "2026-06-01T00:00:00Z",
     )
 
@@ -112,7 +111,7 @@ def test_run_dataset_passes_display_name_to_fdo_metadata():
     """run_dataset should pass the optional dataset display name into FDO metadata creation."""
     with (
         patch("flow.dataset_flow.download_file"),
-        patch("flow.dataset_flow.resolve_source_changed_at", return_value=("hash123", "2026-06-01T00:00:00Z")),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
         patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO) as mock_create_fdo,
         patch("flow.dataset_flow.commit_to_lakefs"),
         patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
@@ -138,7 +137,6 @@ def test_run_dataset_passes_display_name_to_fdo_metadata():
         "RAW/RKI/grippeweb.tsv",
         None,
         "GrippeWeb Weekly Report Data",
-        "hash123",
         "2026-06-01T00:00:00Z",
     )
 

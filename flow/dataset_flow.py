@@ -115,12 +115,12 @@ def run_dataset(
     delimiter = _resolve_delimiter(lakefs_object_path, source_delimiter)
     local_path = str(Path(tempfile.gettempdir()) / Path(lakefs_object_path).name)
     download_file(source_url, local_path)
-    source_content_hash, source_changed_at = resolve_source_changed_at(
+    source_changed_at = resolve_source_changed_at(
         local_path, lakefs_repo, lakefs_branch, lakefs_object_path
     )
     fdo = create_fdo_metadata(
         dataset_name, source_url, lakefs_object_path, description, display_name,
-        source_content_hash, source_changed_at,
+        source_changed_at,
     )
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)

@@ -45,7 +45,6 @@ def create_fdo_metadata(
     lakefs_object_path: str,
     description: str | None = None,
     display_name: str | None = None,
-    source_content_hash: str | None = None,
     source_changed_at: str | None = None,
 ) -> dict:
     """Build an FDO metadata record for the downloaded dataset.
@@ -56,11 +55,12 @@ def create_fdo_metadata(
         lakefs_object_path: Target object path for the raw dataset in lakeFS.
         description: Optional dataset description for the schema.org profile.
         display_name: Optional human-facing display name for the schema.org profile.
-        source_content_hash: Optional sha256 of the downloaded source file, for
-            change detection against future runs.
         source_changed_at: Optional timestamp of the run in which the source
             data last actually changed (as opposed to `kernel.modified`, which
             is stamped on every run regardless of whether the source changed).
+            Change detection itself compares against the checksum lakeFS already
+            reports for the previously committed raw object, so no content hash
+            needs to be stored here.
 
     Returns:
         FDO metadata record for the downloaded dataset.
@@ -116,7 +116,6 @@ def create_fdo_metadata(
         "provenance": {
             "prov:generatedAtTime": now,
             "prov:wasAttributedTo": "EPISERVE Consortium dataset downloader",
-            "source_content_hash": source_content_hash or "",
             "source_changed_at": source_changed_at or now,
         },
     }
