@@ -49,6 +49,10 @@ def commit_to_lakefs(
         lakefs_branch.object(object_path).upload(
             data=infile.read(),
             content_type="text/tab-separated-values",
+            # Upload via the lakeFS API rather than a presigned PUT: the SDK
+            # omits Content-Type from the presigned SigV4 signature and Ceph
+            # RGW (Squid) rejects the mismatch with 403 AccessDenied.
+            pre_sign=False,
         )
 
     if fdo_metadata is not None:
@@ -57,6 +61,7 @@ def commit_to_lakefs(
         lakefs_branch.object(fdo_object_path).upload(
             data=json.dumps(fdo_metadata, indent=2).encode(),
             content_type="application/json",
+            pre_sign=False,
         )
 
     changes = list(lakefs_branch.uncommitted())

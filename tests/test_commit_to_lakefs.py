@@ -30,6 +30,7 @@ def test_commit_to_lakefs_uploads_file_and_commits(tmp_path: Path):
     mock_object.upload.assert_called_once_with(
         data=b"col1\tcol2\n1\t2\n",
         content_type="text/tab-separated-values",
+        pre_sign=False,
     )
     mock_branch.commit.assert_called_once_with(message="new version from RKI")
 
