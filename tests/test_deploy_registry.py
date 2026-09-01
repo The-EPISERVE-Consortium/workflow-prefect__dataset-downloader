@@ -88,3 +88,43 @@ def test_validate_dataset_config_parameter_display_name_takes_precedence():
     )
 
     assert parameters["display_name"] == "Parameter display name."
+
+
+def test_validate_dataset_config_adds_top_level_license_and_attribution_to_parameters():
+    """_validate_dataset_config should pass top-level license_id / attribution to the flow."""
+    _, parameters, _ = _validate_dataset_config(
+        "weather_berlin_daily",
+        {
+            "license_id": "cc-by",
+            "attribution": "Weather data by Open-Meteo.com (CC BY 4.0).",
+            "deployment_name": "download__weather_berlin_daily",
+            "parameters": {
+                "source_url": "https://example.com/weather.csv",
+                "lakefs_object_path": "climate/temperature/open-meteo__weather_berlin_daily.csv",
+                "mariadb_table": "weather_berlin_daily",
+            },
+        },
+        DEFAULTS,
+    )
+
+    assert parameters["license_id"] == "cc-by"
+    assert parameters["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)."
+
+
+def test_validate_dataset_config_omits_license_fields_when_absent():
+    """A dataset without licensing keys should not gain license_id / attribution parameters."""
+    _, parameters, _ = _validate_dataset_config(
+        "grippeweb",
+        {
+            "deployment_name": "download__grippeweb",
+            "parameters": {
+                "source_url": "https://example.com/grippeweb.tsv",
+                "lakefs_object_path": "incidence/influenza/RKI__grippeweb.tsv",
+                "mariadb_table": "grippeweb",
+            },
+        },
+        DEFAULTS,
+    )
+
+    assert "license_id" not in parameters
+    assert "attribution" not in parameters

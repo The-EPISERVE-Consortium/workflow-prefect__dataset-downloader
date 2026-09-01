@@ -40,7 +40,9 @@ PREFECT_API_URL=https://<your-prefect-server>/api python -m deploy --all
 
 Add or change deployments by editing `deploy/datasets.yaml`. Dataset entries may include optional
 `display_name` and `description` fields; if omitted, generated metadata uses the dataset key as the
-display name and `Dataset <dataset_name>` as the description.
+display name and `Dataset <dataset_name>` as the description. Optional `license_id` (a CKAN licence
+list value, e.g. `cc-by`) and `attribution` (a free-text credit line) are written into the FDO
+profile and surface in CKAN as the dataset's licence and an `attribution` extra.
 
 ## Configured datasets
 

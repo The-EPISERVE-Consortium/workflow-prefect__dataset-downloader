@@ -109,6 +109,39 @@ def test_create_fdo_metadata_uses_explicit_source_changed_at():
     assert result["provenance"]["source_changed_at"] != result["kernel"]["modified"]
 
 
+def test_create_fdo_metadata_omits_licence_fields_by_default():
+    """Without license_id / attribution, the profile should carry neither key."""
+    result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
+    assert "license" not in result["profile"]
+    assert "creditText" not in result["profile"]
+
+
+def test_create_fdo_metadata_adds_licence_fields_when_provided():
+    """license_id maps to profile.license and attribution to profile.creditText."""
+    result = create_fdo_metadata.fn(
+        "weather_berlin_daily",
+        URL,
+        "climate/temperature/data.csv",
+        license_id="cc-by",
+        attribution="Weather data by Open-Meteo.com (CC BY 4.0).",
+    )
+    assert result["profile"]["license"] == "cc-by"
+    assert result["profile"]["creditText"] == "Weather data by Open-Meteo.com (CC BY 4.0)."
+
+
+def test_create_fdo_metadata_ignores_blank_licence_fields():
+    """Empty strings are treated the same as missing."""
+    result = create_fdo_metadata.fn(
+        "grippeweb",
+        URL,
+        "incidence/RKI__grippeweb.tsv",
+        license_id="",
+        attribution="",
+    )
+    assert "license" not in result["profile"]
+    assert "creditText" not in result["profile"]
+
+
 def test_media_type_csv():
     assert _media_type("some/path/data.csv") == "text/csv"
 

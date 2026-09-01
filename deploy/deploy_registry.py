@@ -109,6 +109,10 @@ def _validate_dataset_config(
         merged_parameters["display_name"] = config["display_name"]
     if "description" not in merged_parameters and config.get("description") is not None:
         merged_parameters["description"] = config["description"]
+    if "license_id" not in merged_parameters and config.get("license_id") is not None:
+        merged_parameters["license_id"] = config["license_id"]
+    if "attribution" not in merged_parameters and config.get("attribution") is not None:
+        merged_parameters["attribution"] = config["attribution"]
     merged_parameters.setdefault("dataset_name", dataset_key)
     run_daily = merged_parameters.pop("run_daily", True)
     missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))

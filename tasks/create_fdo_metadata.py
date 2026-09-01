@@ -46,6 +46,8 @@ def create_fdo_metadata(
     description: str | None = None,
     display_name: str | None = None,
     source_changed_at: str | None = None,
+    license_id: str | None = None,
+    attribution: str | None = None,
 ) -> dict:
     """Build an FDO metadata record for the downloaded dataset.
 
@@ -61,6 +63,12 @@ def create_fdo_metadata(
             Change detection itself compares against the checksum lakeFS already
             reports for the previously committed raw object, so no content hash
             needs to be stored here.
+        license_id: Optional licence identifier for the schema.org profile
+            (`profile.license`). Passed straight through to CKAN's native
+            `license_id` field by sync-lakefs-ckan, so use a value from CKAN's
+            licence list, e.g. `cc-by`.
+        attribution: Optional credit line for the schema.org profile
+            (`profile.creditText`), surfaced as an `attribution` extra in CKAN.
 
     Returns:
         FDO metadata record for the downloaded dataset.
@@ -70,6 +78,12 @@ def create_fdo_metadata(
     filename = Path(lakefs_object_path).name
     profile_description = description or f"Dataset {dataset_name}"
     profile_display_name = display_name or dataset_name
+
+    licence_fields = {}
+    if license_id:
+        licence_fields["license"] = license_id
+    if attribution:
+        licence_fields["creditText"] = attribution
 
     return {
         "@context": [
@@ -112,6 +126,7 @@ def create_fdo_metadata(
                     "contentUrl": source_url,
                 }
             ],
+            **licence_fields,
         },
         "provenance": {
             "prov:generatedAtTime": now,

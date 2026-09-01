@@ -77,6 +77,8 @@ def run_dataset(
     mariadb_primary_key: str | None = None,
     display_name: str | None = None,
     description: str | None = None,
+    license_id: str | None = None,
+    attribution: str | None = None,
 ) -> None:
     """Download a dataset, publish metadata, and load it into storage targets.
 
@@ -95,6 +97,9 @@ def run_dataset(
         mariadb_primary_key: Optional primary key column for MariaDB writes.
         display_name: Optional display name for generated FDO metadata.
         description: Optional dataset description for generated FDO metadata.
+        license_id: Optional licence identifier for generated FDO metadata
+            (CKAN licence list value, e.g. `cc-by`).
+        attribution: Optional credit line for generated FDO metadata.
 
     Raises:
         ValueError: If required parameters are missing or the delimiter cannot be inferred.
@@ -120,7 +125,7 @@ def run_dataset(
     )
     fdo = create_fdo_metadata(
         dataset_name, source_url, lakefs_object_path, description, display_name,
-        source_changed_at,
+        source_changed_at, license_id=license_id, attribution=attribution,
     )
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)

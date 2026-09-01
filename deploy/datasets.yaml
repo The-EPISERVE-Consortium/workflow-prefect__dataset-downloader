@@ -109,6 +109,8 @@ datasets:
     enabled: true
     display_name: Berlin Daily Weather
     description: Daily Open-Meteo weather data for Berlin. The dataset includes maximum, minimum, and mean 2 m air temperature for the configured recent date window.
+    license_id: cc-by
+    attribution: "Weather data by Open-Meteo.com (CC BY 4.0). Historical values derived from ERA5, Copernicus Climate Change Service."
     deployment_name: download__weather_berlin_daily
     parameters:
       source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&past_days=10&format=csv&timezone=Europe%2FBerlin"
@@ -121,6 +123,8 @@ datasets:
     enabled: true
     display_name: Berlin Hourly Weather
     description: Hourly Open-Meteo weather data for Berlin. The dataset includes 2 m air temperature, relative humidity, and precipitation for the configured recent date window.
+    license_id: cc-by
+    attribution: "Weather data by Open-Meteo.com (CC BY 4.0). Historical values derived from ERA5, Copernicus Climate Change Service."
     deployment_name: download__weather_berlin_hourly
     parameters:
       source_url: "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m,relative_humidity_2m,precipitation&past_days=3&format=csv&timezone=Europe%2FBerlin"
