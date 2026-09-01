@@ -10,6 +10,8 @@ datasets:
     enabled: true
     display_name: GrippeWeb Weekly Report Data
     description: Weekly GrippeWeb participant reports and estimated incidence for acute respiratory illness in Germany. The dataset is stratified by season, illness type, age group, region, and calendar week.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), GrippeWeb Weekly Report Data, licensed under CC BY 4.0."
     deployment_name: download__grippeweb
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/GrippeWeb_Daten_des_Wochenberichts/refs/heads/main/GrippeWeb_Daten_des_Wochenberichts.tsv
@@ -19,6 +21,8 @@ datasets:
     enabled: true
     display_name: Laboratory-Confirmed Influenza Cases in Germany
     description: Weekly laboratory-confirmed influenza case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Laboratory-Confirmed Influenza Cases in Germany, licensed under CC BY 4.0."
     deployment_name: download__influenza_cases_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Influenzafaelle_in_Deutschland/refs/heads/main/IfSG_Influenzafaelle.tsv
@@ -28,6 +32,8 @@ datasets:
     enabled: true
     display_name: Germany COVID-19 7-Day Incidence
     description: Germany-wide COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date and age group and includes cumulative, new, and 7-day case metrics.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Germany COVID-19 7-Day Incidence, licensed under CC BY 4.0."
     deployment_name: download__corona_incidence_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Deutschland.csv
@@ -37,6 +43,8 @@ datasets:
     enabled: true
     display_name: Federal State COVID-19 7-Day Incidence
     description: Federal-state COVID-19 case counts and 7-day incidence from RKI surveillance data. The dataset is organized by reporting date, federal state, and age group and includes cumulative, new, and 7-day case metrics.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Federal State COVID-19 7-Day Incidence, licensed under CC BY 4.0."
     deployment_name: download__corona_incidence_states
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_in_Deutschland/refs/heads/main/COVID-19-Faelle_7-Tage-Inzidenz_Bundeslaender.csv
@@ -46,6 +54,8 @@ datasets:
     enabled: true
     display_name: Respiratory Syncytial Virus Cases in Germany
     description: Weekly respiratory syncytial virus case counts and incidence from RKI IfSG surveillance. The dataset covers Germany and regional breakdowns by reporting week, region, and age group.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Respiratory Syncytial Virus Cases in Germany, licensed under CC BY 4.0."
     deployment_name: download__rsv_cases_germany
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Respiratorische_Synzytialvirusfaelle_in_Deutschland/refs/heads/main/IfSG_RSVfaelle.tsv
@@ -55,6 +65,8 @@ datasets:
     enabled: true
     display_name: Acute Respiratory Illness Consultation Incidence
     description: Weekly consultation incidence for acute respiratory illnesses in Germany. The dataset is stratified by season, calendar week, federal state, and age group.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Acute Respiratory Illness Consultation Incidence, licensed under CC BY 4.0."
     deployment_name: download__are_consultation_incidence
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/ARE-Konsultationsinzidenz/refs/heads/main/ARE-Konsultationsinzidenz.tsv
@@ -64,6 +76,8 @@ datasets:
     enabled: true
     display_name: AMELAG Aggregated Wastewater Surveillance
     description: Aggregated AMELAG wastewater surveillance time series for respiratory pathogens. The dataset includes viral load, normalized viral load, model estimates, uncertainty bounds, sample counts, and covered population share.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), AMELAG Aggregated Wastewater Surveillance, licensed under CC BY 4.0."
     deployment_name: download__wastewater_surveillance_aggregate
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_aggregierte_kurve.tsv
@@ -73,6 +87,8 @@ datasets:
     enabled: true
     display_name: AMELAG Site-Level Wastewater Surveillance
     description: Site-level AMELAG wastewater surveillance measurements for respiratory pathogens. The dataset includes location, federal state, date, viral load, normalized viral load, model estimates, population coverage, lab-change status, and detection-limit flags.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), AMELAG Site-Level Wastewater Surveillance, licensed under CC BY 4.0."
     deployment_name: download__wastewater_surveillance_stations
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Abwassersurveillance_AMELAG/refs/heads/main/amelag_einzelstandorte.tsv
@@ -82,6 +98,8 @@ datasets:
     enabled: true
     display_name: Emergency Department Syndrome Surveillance
     description: Emergency department syndrome surveillance time series from RKI and the AKTIN emergency department registry. The dataset includes relative case shares, 7-day moving averages, expected values, uncertainty bounds, age groups, syndrome categories, and reporting emergency department counts.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Emergency Department Syndrome Surveillance, licensed under CC BY 4.0."
     deployment_name: download__notaufnahme_surveillance
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/Daten_der_Notaufnahmesurveillance/refs/heads/main/Notaufnahmesurveillance_Zeitreihen_Syndrome.tsv
@@ -91,6 +109,8 @@ datasets:
     enabled: true
     display_name: SARI Hospitalization Incidence
     description: Weekly severe acute respiratory infection hospitalization incidence in Germany. The dataset is stratified by season, calendar week, age group, and SARI category.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), SARI Hospitalization Incidence, licensed under CC BY 4.0."
     deployment_name: download__sari_hospitalization_incidence
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/SARI-Hospitalisierungsinzidenz/refs/heads/main/SARI-Hospitalisierungsinzidenz.tsv
@@ -100,6 +120,8 @@ datasets:
     enabled: true
     display_name: COVID-19 Hospitalizations in Germany
     description: COVID-19 hospitalization counts and incidence in Germany from RKI surveillance data. The dataset is stratified by date, federal state, and age group and includes fixed, updated, and nowcast-adjusted 7-day hospitalization metrics.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), COVID-19 Hospitalizations in Germany, licensed under CC BY 4.0."
     deployment_name: download__covid_hospitalizations
     parameters:
       source_url: https://raw.githubusercontent.com/robert-koch-institut/COVID-19-Hospitalisierungen_in_Deutschland/refs/heads/main/Aktuell_Deutschland_adjustierte-COVID-19-Hospitalisierungen.csv
