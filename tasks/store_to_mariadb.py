@@ -1,12 +1,11 @@
 """Prefect task for writing the downloaded TSV data into MariaDB."""
 
 import math
-import os
 
-import pymysql
 from prefect import task
 
 from tasks._logging import get_logger
+from tasks._mariadb import connect
 
 
 @task
@@ -17,14 +16,9 @@ def store_to_mariadb(df, table: str, database: str, primary_key: str | None = No
     With primary_key: upserts rows so repeated runs with overlapping data are idempotent.
     """
     logger = get_logger(__name__)
-    host = os.environ["MARIADB_HOST"]
-    logger.info("Connecting to %s/%s", host, database)
+    logger.info("Connecting to %s", database)
 
-    conn = pymysql.connect(
-        host=host,
-        user=os.environ["MARIADB_USER"],
-        password=os.environ["MARIADB_PASSWORD"],
-    )
+    conn = connect()
     with conn.cursor() as cursor:
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{database}`")
         cursor.execute(f"USE `{database}`")

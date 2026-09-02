@@ -10,6 +10,7 @@ from tasks.convert_to_parquet import convert_to_parquet
 from tasks.create_fdo_metadata import create_fdo_metadata
 from tasks.detect_content_change import resolve_source_changed_at
 from tasks.download_tsv import download_file
+from tasks.read_full_table import read_full_table
 from tasks.save_locally import parse_dataset
 from tasks.store_to_mariadb import store_to_mariadb
 
@@ -17,6 +18,14 @@ _EXTENSION_DELIMITERS = {
     ".tsv": "\t",
     ".csv": ",",
 }
+
+# Datasets whose MariaDB table accumulates across runs (upsert on a primary
+# key) AND whose full accumulated history -- not just the latest downloaded
+# window -- should be what lands in lakeFS/CKAN. Deliberately a hardcoded set,
+# not a general config knob: it currently means the two Open-Meteo weather
+# datasets, whose daily downloads only carry a recent window while the table
+# behind them goes back to 1940.
+FULL_HISTORY_DATASETS = {"weather_berlin_daily", "weather_berlin_hourly"}
 
 
 def _resolve_delimiter(lakefs_object_path: str, override: str | None) -> str:
@@ -135,4 +144,16 @@ def run_dataset(
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
-    convert_to_parquet(df, fdo, source_url, lakefs_processed_repo, qid_seed=qid_seed)
+
+    publish_df = df
+    if dataset_name in FULL_HISTORY_DATASETS:
+        publish_df = read_full_table(
+            mariadb_table, mariadb_database, mariadb_primary_key, schema_df=df
+        )
+        if len(publish_df) < len(df):
+            raise RuntimeError(
+                f"{mariadb_table}: full-table read-back returned {len(publish_df)} rows, "
+                f"fewer than the {len(df)} just written -- refusing to publish a truncated dataset."
+            )
+
+    convert_to_parquet(publish_df, fdo, source_url, lakefs_processed_repo, qid_seed=qid_seed)

@@ -32,7 +32,7 @@ def test_store_to_mariadb_writes_and_commits():
     mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
     mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-    with patch("tasks.store_to_mariadb.pymysql.connect", return_value=mock_conn):
+    with patch("tasks._mariadb.pymysql.connect", return_value=mock_conn):
         store_to_mariadb.fn(SAMPLE_DF, "grippeweb", "db")
 
     assert mock_cursor.execute.call_count == 4  # CREATE DATABASE, USE, DROP TABLE, CREATE TABLE
@@ -73,7 +73,7 @@ def test_store_to_mariadb_upserts_when_primary_key_given():
     mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
     mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-    with patch("tasks.store_to_mariadb.pymysql.connect", return_value=mock_conn):
+    with patch("tasks._mariadb.pymysql.connect", return_value=mock_conn):
         store_to_mariadb.fn(SAMPLE_DF, "weather", "db", primary_key="Kalenderwoche")
 
     assert mock_cursor.execute.call_count == 3  # CREATE DATABASE, USE, CREATE TABLE IF NOT EXISTS

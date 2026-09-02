@@ -156,6 +156,7 @@ def test_run_dataset_passes_license_and_attribution_to_fdo_metadata():
         patch("flow.dataset_flow.commit_to_lakefs"),
         patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
         patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.read_full_table", return_value=SAMPLE_DF),
         patch("flow.dataset_flow.convert_to_parquet"),
     ):
         run_dataset.fn(
@@ -186,6 +187,7 @@ def test_run_dataset_threads_qid_seed_to_fdo_and_parquet():
         patch("flow.dataset_flow.commit_to_lakefs"),
         patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
         patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.read_full_table", return_value=SAMPLE_DF),
         patch("flow.dataset_flow.convert_to_parquet") as mock_parquet,
     ):
         run_dataset.fn(
@@ -203,6 +205,84 @@ def test_run_dataset_threads_qid_seed_to_fdo_and_parquet():
 
     assert mock_create_fdo.call_args.kwargs["qid_seed"] == "weather_berlin_hourly"
     assert mock_parquet.call_args.kwargs["qid_seed"] == "weather_berlin_hourly"
+
+
+_FULL_TABLE_DF = pd.DataFrame({"time": ["1940-01-01", "1940-01-02", "2026-01-01"], "t": [1, 2, 3]})
+
+
+def _weather_run(**overrides):
+    kwargs = dict(
+        dataset_name="weather_berlin_daily",
+        source_url="https://api.open-meteo.com/v1/forecast?daily=temperature_2m_max",
+        lakefs_repo="sandbox",
+        lakefs_branch="main",
+        lakefs_object_path="climate/temperature/open-meteo__weather_berlin_daily.csv",
+        lakefs_commit_message="new version from Open-Meteo",
+        mariadb_table="weather_berlin_daily",
+        mariadb_database="episerve-raw-data",
+        lakefs_processed_repo="data-processed",
+        mariadb_primary_key="time",
+        qid_seed="weather_berlin_daily",
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_run_dataset_publishes_full_table_for_weather():
+    """A weather dataset publishes the MariaDB read-back, not the downloaded delta."""
+    with (
+        patch("flow.dataset_flow.download_file"),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
+        patch("flow.dataset_flow.commit_to_lakefs"),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
+        patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.read_full_table", return_value=_FULL_TABLE_DF) as mock_read,
+        patch("flow.dataset_flow.convert_to_parquet") as mock_parquet,
+    ):
+        run_dataset.fn(**_weather_run())
+
+    mock_read.assert_called_once_with(
+        "weather_berlin_daily", "episerve-raw-data", "time", schema_df=SAMPLE_DF
+    )
+    assert mock_parquet.call_args.args[0] is _FULL_TABLE_DF
+
+
+def test_run_dataset_skips_full_table_for_non_weather():
+    """A non-weather dataset never touches read_full_table and publishes the delta."""
+    with (
+        patch("flow.dataset_flow.download_file"),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
+        patch("flow.dataset_flow.commit_to_lakefs"),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
+        patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.read_full_table") as mock_read,
+        patch("flow.dataset_flow.convert_to_parquet") as mock_parquet,
+    ):
+        run_dataset.fn(**_weather_run(dataset_name="grippeweb", mariadb_table="grippeweb"))
+
+    mock_read.assert_not_called()
+    assert mock_parquet.call_args.args[0] is SAMPLE_DF
+
+
+def test_run_dataset_raises_when_full_table_read_back_is_short():
+    """If the read-back has fewer rows than the delta just written, fail loudly."""
+    short = pd.DataFrame({"time": ["2026-01-01"], "t": [3]})  # 1 row < 2-row SAMPLE_DF
+    with (
+        patch("flow.dataset_flow.download_file"),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO),
+        patch("flow.dataset_flow.commit_to_lakefs"),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
+        patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.read_full_table", return_value=short),
+        patch("flow.dataset_flow.convert_to_parquet") as mock_parquet,
+    ):
+        with pytest.raises(RuntimeError, match="fewer than the 2"):
+            run_dataset.fn(**_weather_run())
+
+    mock_parquet.assert_not_called()
 
 
 def test_run_dataset_rejects_blank_required_parameters():
