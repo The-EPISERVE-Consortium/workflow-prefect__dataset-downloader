@@ -7,17 +7,23 @@ from pathlib import Path
 from prefect import task
 
 
-def mint_qid(source_url: str) -> str:
-    """Create a stable QID-like identifier from a source URL filename.
+def mint_qid(source_url: str, seed_override: str | None = None) -> str:
+    """Create a stable QID-like identifier for a source dataset.
+
+    By default the seed is the source URL's filename (query string ignored),
+    which keeps the QID stable across runs even when query parameters change.
+    Pass ``seed_override`` when that filename is not unique per dataset -- e.g.
+    two Open-Meteo endpoints that both resolve to ``forecast``.
 
     Args:
         source_url: URL of the source dataset.
+        seed_override: Explicit seed string to hash instead of the URL filename.
 
     Returns:
-        Stable QID-like identifier derived from the source filename.
+        Stable QID-like identifier derived from the seed.
     """
-    filename = Path(source_url.split("?")[0]).name
-    digest = hashlib.sha256(filename.encode()).hexdigest()
+    seed = seed_override or Path(source_url.split("?")[0]).name
+    digest = hashlib.sha256(seed.encode()).hexdigest()
     return f"Q{int(digest, 16) % 10**13:013d}"
 
 
@@ -48,6 +54,7 @@ def create_fdo_metadata(
     source_changed_at: str | None = None,
     license_id: str | None = None,
     attribution: str | None = None,
+    qid_seed: str | None = None,
 ) -> dict:
     """Build an FDO metadata record for the downloaded dataset.
 
@@ -69,11 +76,13 @@ def create_fdo_metadata(
             licence list, e.g. `cc-by`.
         attribution: Optional credit line for the schema.org profile
             (`profile.creditText`), surfaced as an `attribution` extra in CKAN.
+        qid_seed: Optional explicit seed for `mint_qid`, for datasets whose
+            source URL filename is not unique (e.g. two Open-Meteo endpoints).
 
     Returns:
         FDO metadata record for the downloaded dataset.
     """
-    qid = mint_qid(source_url) + "-raw"
+    qid = mint_qid(source_url, qid_seed) + "-raw"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     filename = Path(lakefs_object_path).name
     profile_description = description or f"Dataset {dataset_name}"

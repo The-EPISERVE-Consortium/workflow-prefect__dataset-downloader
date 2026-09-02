@@ -42,7 +42,9 @@ Add or change deployments by editing `deploy/datasets.yaml`. Dataset entries may
 `display_name` and `description` fields; if omitted, generated metadata uses the dataset key as the
 display name and `Dataset <dataset_name>` as the description. Optional `license_id` (a CKAN licence
 list value, e.g. `cc-by`) and `attribution` (a free-text credit line) are written into the FDO
-profile and surface in CKAN as the dataset's licence and an `attribution` extra.
+profile and surface in CKAN as the dataset's licence and an `attribution` extra. Optional `qid_seed`
+overrides the string hashed into the dataset's QID — needed only when the source URL filename is not
+unique (the two Open-Meteo weather endpoints both resolve to `forecast`).
 
 ## Configured datasets
 

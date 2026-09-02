@@ -106,6 +106,7 @@ def test_run_dataset_passes_description_to_fdo_metadata():
         "2026-06-01T00:00:00Z",
         license_id=None,
         attribution=None,
+        qid_seed=None,
     )
 
 
@@ -142,6 +143,7 @@ def test_run_dataset_passes_display_name_to_fdo_metadata():
         "2026-06-01T00:00:00Z",
         license_id=None,
         attribution=None,
+        qid_seed=None,
     )
 
 
@@ -173,6 +175,34 @@ def test_run_dataset_passes_license_and_attribution_to_fdo_metadata():
     _, kwargs = mock_create_fdo.call_args
     assert kwargs["license_id"] == "cc-by"
     assert kwargs["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)."
+
+
+def test_run_dataset_threads_qid_seed_to_fdo_and_parquet():
+    """run_dataset should pass qid_seed into both create_fdo_metadata and convert_to_parquet."""
+    with (
+        patch("flow.dataset_flow.download_file"),
+        patch("flow.dataset_flow.resolve_source_changed_at", return_value="2026-06-01T00:00:00Z"),
+        patch("flow.dataset_flow.create_fdo_metadata", return_value=SAMPLE_FDO) as mock_create_fdo,
+        patch("flow.dataset_flow.commit_to_lakefs"),
+        patch("flow.dataset_flow.parse_dataset", return_value=SAMPLE_DF),
+        patch("flow.dataset_flow.store_to_mariadb"),
+        patch("flow.dataset_flow.convert_to_parquet") as mock_parquet,
+    ):
+        run_dataset.fn(
+            dataset_name="weather_berlin_hourly",
+            source_url="https://api.open-meteo.com/v1/forecast?hourly=temperature_2m",
+            lakefs_repo="sandbox",
+            lakefs_branch="main",
+            lakefs_object_path="climate/temperature/open-meteo__weather_berlin_hourly.csv",
+            lakefs_commit_message="new version from Open-Meteo",
+            mariadb_table="weather_berlin_hourly",
+            mariadb_database="test",
+            lakefs_processed_repo="data-processed",
+            qid_seed="weather_berlin_hourly",
+        )
+
+    assert mock_create_fdo.call_args.kwargs["qid_seed"] == "weather_berlin_hourly"
+    assert mock_parquet.call_args.kwargs["qid_seed"] == "weather_berlin_hourly"
 
 
 def test_run_dataset_rejects_blank_required_parameters():

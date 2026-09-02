@@ -120,6 +120,27 @@ def test_convert_to_parquet_strips_query_string_from_filename():
     assert parquet_path in uploaded
 
 
+def test_convert_to_parquet_uses_qid_seed_for_identity():
+    """qid_seed must drive the QID/shard path so it lines up with the raw FDO."""
+    mock_repo, mock_branch, uploaded = _make_mock_branch()
+    forecast_url = "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m"
+    seeded_qid = mint_qid(forecast_url, "weather_berlin_hourly")
+    seeded_shard = shard_qid(seeded_qid)
+    fdo = {
+        **SAMPLE_FDO,
+        "@id": seeded_qid + "-raw",
+        "kernel": {**SAMPLE_FDO["kernel"], "@id": seeded_qid + "-raw"},
+    }
+
+    with patch("tasks.convert_to_parquet._get_lakefs_repository", return_value=mock_repo):
+        convert_to_parquet.fn(SAMPLE_DF, fdo, forecast_url, "data-processed", qid_seed="weather_berlin_hourly")
+
+    fdo_path = f"{seeded_shard}/{seeded_qid}.fdo.json"
+    assert fdo_path in uploaded
+    assert seeded_qid != mint_qid(forecast_url)
+    assert json.loads(uploaded[fdo_path]["data"])["@id"] == seeded_qid
+
+
 def test_convert_to_parquet_uploads_fdo_with_parquet_component():
     mock_repo, mock_branch, uploaded = _make_mock_branch()
 

@@ -79,6 +79,7 @@ def run_dataset(
     description: str | None = None,
     license_id: str | None = None,
     attribution: str | None = None,
+    qid_seed: str | None = None,
 ) -> None:
     """Download a dataset, publish metadata, and load it into storage targets.
 
@@ -100,6 +101,9 @@ def run_dataset(
         license_id: Optional licence identifier for generated FDO metadata
             (CKAN licence list value, e.g. `cc-by`).
         attribution: Optional credit line for generated FDO metadata.
+        qid_seed: Optional explicit QID seed, for datasets whose source URL
+            filename is not unique (e.g. the two Open-Meteo weather endpoints,
+            both of which resolve to `forecast`).
 
     Raises:
         ValueError: If required parameters are missing or the delimiter cannot be inferred.
@@ -126,8 +130,9 @@ def run_dataset(
     fdo = create_fdo_metadata(
         dataset_name, source_url, lakefs_object_path, description, display_name,
         source_changed_at, license_id=license_id, attribution=attribution,
+        qid_seed=qid_seed,
     )
     commit_to_lakefs(local_path, lakefs_repo, lakefs_branch, lakefs_object_path, lakefs_commit_message, fdo)
     df = parse_dataset(local_path, delimiter, source_skiprows)
     store_to_mariadb(df, mariadb_table, mariadb_database, mariadb_primary_key)
-    convert_to_parquet(df, fdo, source_url, lakefs_processed_repo)
+    convert_to_parquet(df, fdo, source_url, lakefs_processed_repo, qid_seed=qid_seed)

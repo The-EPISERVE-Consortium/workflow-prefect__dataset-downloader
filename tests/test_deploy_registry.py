@@ -128,3 +128,22 @@ def test_validate_dataset_config_omits_license_fields_when_absent():
 
     assert "license_id" not in parameters
     assert "attribution" not in parameters
+
+
+def test_validate_dataset_config_adds_top_level_qid_seed_to_parameters():
+    """_validate_dataset_config should pass a top-level qid_seed to the flow."""
+    _, parameters, _ = _validate_dataset_config(
+        "weather_berlin_hourly",
+        {
+            "qid_seed": "weather_berlin_hourly",
+            "deployment_name": "download__weather_berlin_hourly",
+            "parameters": {
+                "source_url": "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m",
+                "lakefs_object_path": "climate/temperature/open-meteo__weather_berlin_hourly.csv",
+                "mariadb_table": "weather_berlin_hourly",
+            },
+        },
+        DEFAULTS,
+    )
+
+    assert parameters["qid_seed"] == "weather_berlin_hourly"

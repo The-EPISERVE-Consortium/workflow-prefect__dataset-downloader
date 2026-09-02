@@ -113,6 +113,8 @@ def _validate_dataset_config(
         merged_parameters["license_id"] = config["license_id"]
     if "attribution" not in merged_parameters and config.get("attribution") is not None:
         merged_parameters["attribution"] = config["attribution"]
+    if "qid_seed" not in merged_parameters and config.get("qid_seed") is not None:
+        merged_parameters["qid_seed"] = config["qid_seed"]
     merged_parameters.setdefault("dataset_name", dataset_key)
     run_daily = merged_parameters.pop("run_daily", True)
     missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))

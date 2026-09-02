@@ -32,6 +32,20 @@ def test_mint_qid_ignores_query_string():
     assert mint_qid(base) == mint_qid(same_file)
 
 
+def test_mint_qid_seed_override_disambiguates_same_filename():
+    """Two datasets whose URL filename collides get distinct QIDs via seed_override."""
+    daily = "https://api.open-meteo.com/v1/forecast?daily=temperature_2m_max"
+    hourly = "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m"
+    assert mint_qid(daily) == mint_qid(hourly)  # the bug this guards against
+    assert mint_qid(daily, "weather_berlin_daily") != mint_qid(hourly, "weather_berlin_hourly")
+    assert re.match(r"^Q\d{13}$", mint_qid(daily, "weather_berlin_daily"))
+
+
+def test_mint_qid_seed_override_is_stable():
+    url = "https://api.open-meteo.com/v1/forecast?daily=x"
+    assert mint_qid(url, "weather_berlin_daily") == mint_qid("https://other.example/forecast?y=2", "weather_berlin_daily")
+
+
 def test_create_fdo_metadata_structure():
     result = create_fdo_metadata.fn("grippeweb", URL, "incidence/RKI__grippeweb.tsv")
 
@@ -127,6 +141,20 @@ def test_create_fdo_metadata_adds_licence_fields_when_provided():
     )
     assert result["profile"]["license"] == "cc-by"
     assert result["profile"]["creditText"] == "Weather data by Open-Meteo.com (CC BY 4.0)."
+
+
+def test_create_fdo_metadata_uses_qid_seed_when_given():
+    """A qid_seed changes the minted @id (still `-raw` suffixed) without touching anything else."""
+    forecast_url = "https://api.open-meteo.com/v1/forecast?daily=temperature_2m_max"
+    default = create_fdo_metadata.fn("weather_berlin_daily", forecast_url, "climate/temperature/x.csv")
+    seeded = create_fdo_metadata.fn(
+        "weather_berlin_daily", forecast_url, "climate/temperature/x.csv",
+        qid_seed="weather_berlin_daily",
+    )
+    assert seeded["@id"] != default["@id"]
+    assert seeded["@id"].endswith("-raw")
+    assert seeded["kernel"]["@id"] == seeded["@id"]
+    assert seeded["profile"]["@id"] == seeded["@id"]
 
 
 def test_create_fdo_metadata_ignores_blank_licence_fields():

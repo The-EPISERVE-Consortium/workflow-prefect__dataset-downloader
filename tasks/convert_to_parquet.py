@@ -40,11 +40,16 @@ def convert_to_parquet(
     source_url: str,
     lakefs_repo: str,
     lakefs_branch: str = "main",
+    qid_seed: str | None = None,
 ) -> None:
-    """Convert a DataFrame to Parquet and commit it alongside its FDO metadata to the processed lakeFS repo."""
+    """Convert a DataFrame to Parquet and commit it alongside its FDO metadata to the processed lakeFS repo.
+
+    ``qid_seed`` must match the value passed to ``create_fdo_metadata`` so the
+    processed FDO's QID lines up with the raw one.
+    """
     logger = get_logger(__name__)
 
-    canonical_qid = mint_qid(source_url)
+    canonical_qid = mint_qid(source_url, qid_seed)
     qid_upper = canonical_qid.upper()
     shard_prefix = shard_qid(canonical_qid)
     source_stem = Path(source_url.split("?")[0]).stem
