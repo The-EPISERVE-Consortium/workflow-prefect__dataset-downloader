@@ -157,3 +157,27 @@ datasets:
       lakefs_commit_message: new version from Open-Meteo
       mariadb_table: weather_berlin_hourly
       mariadb_primary_key: time
+  who_flunet_germany:
+    enabled: true
+    display_name: WHO FluNet Weekly Laboratory Surveillance Germany
+    description: "Weekly WHO FluNet virological surveillance for Germany: influenza specimens processed and detections by subtype and lineage, plus RSV and other respiratory virus detections. National-level weekly history since 2013. The WHO FluMart API returns the complete accumulated series on every call."
+    license_id: cc-by
+    attribution: "World Health Organization (WHO), FluNet, via the WHO FluMart data API."
+    deployment_name: download__who_flunet_germany
+    parameters:
+      source_url: "https://xmart-api-public.who.int/FLUMART/VIW_FNT?$format=csv&$filter=ISO2%20eq%20%27DE%27"
+      lakefs_object_path: incidence/influenza/WHO__flunet_germany.csv
+      lakefs_commit_message: new version from WHO FluMart API
+      mariadb_table: who_flunet_germany
+  who_fluid_germany:
+    enabled: true
+    display_name: WHO fluID Epidemiological Surveillance Germany
+    description: "Weekly WHO fluID epidemiological data for Germany: ARI and SARI cases, SARI deaths, geographic spread and intensity, by age group. National-level weekly history since 2009. The WHO FluMart API returns the complete accumulated series on every call."
+    license_id: cc-by
+    attribution: "World Health Organization (WHO), fluID, via the WHO FluMart data API."
+    deployment_name: download__who_fluid_germany
+    parameters:
+      source_url: "https://xmart-api-public.who.int/FLUMART/VIW_FID_EPI?$format=csv&$filter=COUNTRY_AREA_TERRITORY%20eq%20%27Germany%27"
+      lakefs_object_path: surveillance/respiratory/WHO__fluid_germany.csv
+      lakefs_commit_message: new version from WHO FluMart API
+      mariadb_table: who_fluid_germany
