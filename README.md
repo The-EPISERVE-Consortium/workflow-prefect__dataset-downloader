@@ -46,6 +46,13 @@ profile and surface in CKAN as the dataset's licence and an `attribution` extra.
 overrides the string hashed into the dataset's QID — needed only when the source URL filename is not
 unique (the two Open-Meteo weather endpoints both resolve to `forecast`).
 
+The schedule is set with `schedule`, a cron expression in Europe/Berlin time. `defaults:` sets it to
+`"0 1 * * *"` (every night at 01:00), so datasets run nightly unless an entry overrides it, either as a
+sibling of `deployment_name` or under `parameters:` (e.g. `schedule: "0 3 1 * *"` for the first of the
+month). `schedule: none` (or an empty `schedule:`) deploys the dataset without a schedule, for manual runs; leaving the key out falls back to the default. The
+former `run_daily` flag was replaced by `schedule`. Note that deploying with `none` does not remove a
+schedule that an already deployed dataset has; that has to be done in Prefect.
+
 ## Configured datasets
 
 All sources are public RKI GitHub repos or the Open-Meteo API. Each dataset gets a deployment named `download__<key>`.

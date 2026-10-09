@@ -76,6 +76,36 @@ def get_dataset_keys() -> list[str]:
     return sorted(datasets.keys())
 
 
+SCHEDULE_TIMEZONE = "Europe/Berlin"
+
+
+def _normalize_schedule(dataset_key: str, value) -> str | None:
+    """Turn a registry ``schedule`` value into a validated cron string, or None for "no schedule".
+
+    Args:
+        dataset_key: Dataset key, for error messages.
+        value: Value from the registry: a cron string, ``none`` (any case), an empty value or None.
+
+    Returns:
+        The cron string, or None when the dataset should not be scheduled.
+
+    Raises:
+        ValueError: If the value is not a string, or not a valid cron expression.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"Dataset '{dataset_key}': 'schedule' must be a cron string or 'none', got {value!r}.")
+    value = value.strip()
+    if value == "" or value.lower() == "none":
+        return None
+    try:
+        CronSchedule(cron=value, timezone=SCHEDULE_TIMEZONE)
+    except Exception as exc:  # prefect/pydantic raise their own validation errors for bad cron strings
+        raise ValueError(f"Dataset '{dataset_key}': invalid cron expression in 'schedule': {value!r}.") from exc
+    return value
+
+
 def _validate_dataset_config(
     dataset_key: str,
     config: dict,
@@ -89,7 +119,7 @@ def _validate_dataset_config(
         defaults: Shared default parameters from the YAML registry.
 
     Returns:
-        Deployment name, merged flow parameters, and daily schedule flag.
+        Deployment name, merged flow parameters, and the cron schedule string (None for no schedule).
 
     Raises:
         ValueError: If the dataset configuration is invalid.
@@ -116,30 +146,44 @@ def _validate_dataset_config(
     if "qid_seed" not in merged_parameters and config.get("qid_seed") is not None:
         merged_parameters["qid_seed"] = config["qid_seed"]
     merged_parameters.setdefault("dataset_name", dataset_key)
-    run_daily = merged_parameters.pop("run_daily", True)
+    if "run_daily" in merged_parameters:
+        raise ValueError(
+            f"Dataset '{dataset_key}': 'run_daily' was replaced by 'schedule' "
+            "(a cron string such as \"0 1 * * *\", or 'none' for no schedule)."
+        )
+    # Precedence: parameters > dataset-level key > registry defaults. No value at all means no schedule.
+    merged_parameters.pop("schedule", None)
+    if "schedule" in parameters:
+        raw_schedule = parameters["schedule"]
+    elif "schedule" in config:
+        raw_schedule = config["schedule"]
+    else:
+        raw_schedule = defaults.get("schedule")
+    schedule = _normalize_schedule(dataset_key, raw_schedule)
     missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))
     if missing:
         missing_list = ", ".join(missing)
         raise ValueError(f"Dataset '{dataset_key}' is missing required parameter(s): {missing_list}.")
 
-    return deployment_name, merged_parameters, bool(run_daily)
+    return deployment_name, merged_parameters, schedule
 
 
-def _deploy_dataset(deployment_name: str, parameters: dict[str, str], prefect_api_url: str, run_daily: bool) -> None:
+def _deploy_dataset(deployment_name: str, parameters: dict[str, str], prefect_api_url: str, schedule: str | None) -> None:
     """Deploy one dataset configuration to the shared work pool.
 
     Args:
         deployment_name: Prefect deployment name.
         parameters: Flow parameters for the dataset deployment.
         prefect_api_url: Prefect API URL used by the deployment client.
-        run_daily: Whether to attach the default daily schedule.
+        schedule: Cron expression (Europe/Berlin) to schedule the deployment with, or None for no schedule.
+            Note: None does not remove a schedule an already deployed dataset has.
 
     Raises:
         RuntimeError: If the configured Prefect API URL returns a non-JSON response.
     """
     os.environ["PREFECT_API_URL"] = prefect_api_url
 
-    schedule_kwargs = {"schedules": [CronSchedule(cron="0 1 * * *", timezone="Europe/Berlin")]} if run_daily else {}
+    schedule_kwargs = {"schedules": [CronSchedule(cron=schedule, timezone=SCHEDULE_TIMEZONE)]} if schedule else {}
 
     try:
         run_dataset.from_source(
@@ -183,13 +227,13 @@ def deploy_from_registry(dataset_key: str | None = None) -> None:
         if config is None:
             available = ", ".join(sorted(datasets))
             raise ValueError(f"Unknown dataset '{dataset_key}'. Available datasets: {available}")
-        deployment_name, parameters, run_daily = _validate_dataset_config(dataset_key, config, defaults)
-        _deploy_dataset(deployment_name, parameters, prefect_api_url, run_daily)
+        deployment_name, parameters, schedule = _validate_dataset_config(dataset_key, config, defaults)
+        _deploy_dataset(deployment_name, parameters, prefect_api_url, schedule)
         return
 
     for key in sorted(datasets):
         config = datasets[key]
         if not config.get("enabled", True):
             continue
-        deployment_name, parameters, run_daily = _validate_dataset_config(key, config, defaults)
-        _deploy_dataset(deployment_name, parameters, prefect_api_url, run_daily)
+        deployment_name, parameters, schedule = _validate_dataset_config(key, config, defaults)
+        _deploy_dataset(deployment_name, parameters, prefect_api_url, schedule)

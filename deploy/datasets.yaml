@@ -4,7 +4,7 @@ defaults:
   lakefs_branch: main
   lakefs_commit_message: periodic download
   mariadb_database: episerve-raw-data
-  run_daily: true
+  schedule: "0 1 * * *"   # cron, Europe/Berlin; 'none' = no schedule (manual runs only)
 datasets:
   grippeweb:
     enabled: true

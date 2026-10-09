@@ -1,6 +1,12 @@
 """Unit tests for deploy/deploy_registry.py."""
 
-from deploy.deploy_registry import _validate_dataset_config
+from unittest.mock import MagicMock, patch
+
+import pytest
+from prefect.client.schemas.schedules import CronSchedule
+
+from deploy import deploy_registry
+from deploy.deploy_registry import _deploy_dataset, _load_registry, _validate_dataset_config
 
 
 DEFAULTS = {
@@ -147,3 +153,99 @@ def test_validate_dataset_config_adds_top_level_qid_seed_to_parameters():
     )
 
     assert parameters["qid_seed"] == "weather_berlin_hourly"
+
+
+# --- schedule ---
+
+NIGHTLY = "0 1 * * *"
+
+
+def _entry(**extra):
+    return {
+        "deployment_name": "download__x",
+        "parameters": {
+            "source_url": "https://example.com/x.tsv",
+            "lakefs_object_path": "some/RKI__x.tsv",
+            "mariadb_table": "x",
+            **extra.pop("parameters", {}),
+        },
+        **extra,
+    }
+
+
+def _schedule(config, defaults=DEFAULTS):
+    return _validate_dataset_config("x", config, defaults)[2]
+
+
+def test_schedule_comes_from_the_registry_defaults():
+    assert _schedule(_entry(), {**DEFAULTS, "schedule": NIGHTLY}) == NIGHTLY
+
+
+def test_no_schedule_anywhere_means_no_schedule():
+    assert _schedule(_entry()) is None
+
+
+def test_dataset_level_schedule_overrides_the_default():
+    assert _schedule(_entry(schedule="0 3 1 * *"), {**DEFAULTS, "schedule": NIGHTLY}) == "0 3 1 * *"
+
+
+def test_parameters_schedule_overrides_the_dataset_level_one():
+    config = _entry(schedule="0 3 1 * *", parameters={"schedule": "0 4 * * 1"})
+
+    assert _schedule(config, {**DEFAULTS, "schedule": NIGHTLY}) == "0 4 * * 1"
+
+
+@pytest.mark.parametrize("value", ["none", "None", "NONE", " none ", "", None])
+def test_none_like_values_disable_the_schedule(value):
+    assert _schedule(_entry(schedule=value), {**DEFAULTS, "schedule": NIGHTLY}) is None
+
+
+def test_schedule_is_not_passed_to_the_flow():
+    _, parameters, _ = _validate_dataset_config("x", _entry(), {**DEFAULTS, "schedule": NIGHTLY})
+
+    assert "schedule" not in parameters
+
+
+@pytest.mark.parametrize("value", ["not a cron", "61 * * * *", "0 25 * * *"])
+def test_invalid_cron_is_rejected_with_the_dataset_key(value):
+    with pytest.raises(ValueError, match="Dataset 'x'.*cron"):
+        _schedule(_entry(schedule=value))
+
+
+def test_non_string_schedule_is_rejected():
+    with pytest.raises(ValueError, match="cron string or 'none'"):
+        _schedule(_entry(schedule=5))
+
+
+def test_run_daily_is_no_longer_accepted():
+    with pytest.raises(ValueError, match="run_daily.*schedule"):
+        _validate_dataset_config("x", _entry(), {**DEFAULTS, "run_daily": True})
+
+
+def test_every_dataset_in_the_registry_keeps_the_nightly_schedule():
+    defaults, datasets = _load_registry()
+
+    schedules = {key: _validate_dataset_config(key, config, defaults)[2] for key, config in datasets.items()}
+
+    assert len(schedules) >= 15
+    assert set(schedules.values()) == {NIGHTLY}
+
+
+def _deploy(schedule):
+    flow = MagicMock()
+    with patch.object(deploy_registry, "run_dataset") as run_dataset, patch.dict("os.environ", {}):
+        run_dataset.from_source.return_value = flow
+        _deploy_dataset("download__x", {"p": 1}, "http://prefect.example/api", schedule)
+    return flow.deploy.call_args.kwargs
+
+
+def test_deploy_attaches_the_cron_schedule_in_berlin_time():
+    kwargs = _deploy("0 3 1 * *")
+
+    [schedule] = kwargs["schedules"]
+    assert isinstance(schedule, CronSchedule)
+    assert str(schedule.cron) == "0 3 1 * *" and str(schedule.timezone) == "Europe/Berlin"
+
+
+def test_deploy_without_schedule_passes_no_schedules():
+    assert "schedules" not in _deploy(None)
