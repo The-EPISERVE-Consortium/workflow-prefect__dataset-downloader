@@ -181,3 +181,37 @@ datasets:
       lakefs_object_path: surveillance/respiratory/WHO__fluid_germany.csv
       lakefs_commit_message: new version from WHO FluMart API
       mariadb_table: who_fluid_germany
+  kvis_vaccination_rates:
+    enabled: true
+    display_name: Routine Vaccination Rates in Germany (KV-Impfsurveillance)
+    description: |
+      Vaccination rates (Impfquoten) for routine vaccinations in Germany, from the RKI's KV-Impfsurveillance. The rates are calculated from billing data of the statutory health insurance physicians and are available per district (Landkreis). The data is downloaded weekly from the RKI repository; the RKI itself publishes new data about quarterly, with a delay of 2 to 3 quarters.
+
+      Files:
+
+      - `KVIS_Impfquoten_Erwachsene.parquet`: adults and elderly people: influenza, pneumococcal, herpes zoster, pertussis, FSME and COVID-19 (since the 2023/24 season), by reporting period, target group, age group and vaccination status
+      - `KVIS_Impfquoten_Kinder.parquet`: children: 16 vaccines (e.g. diphtheria, measles, polio, rotavirus, RSV), by birth year, age group and vaccination status
+
+      Main columns: `Impfquote` is the vaccination rate in percent. `Bevoelkerung_Gewicht` is the population size of the stratum and serves as the weight when rates are aggregated: sum(weight * rate) / sum(weight). `Regionalschluessel_Kreis` is the district key (AGS) as a number, so the leading zero of the states 01 to 09 is missing (e.g. 1001 for 01001); in the adult file, which has missing keys, it is stored as a decimal number (e.g. 1001.0).
+
+      Missing values (`NA` in the source) are null. The same data is available in the MariaDB tables `kvis_vaccination_rates_adults` and `kvis_vaccination_rates_children`.
+    license_id: cc-by
+    attribution: "Robert Koch-Institut (RKI), Inanspruchnahme von Routineimpfungen in Deutschland – Ergebnisse aus der KV-Impfsurveillance, licensed under CC BY 4.0."
+    qid_seed: kvis_vaccination_rates
+    dataset_url: https://github.com/robert-koch-institut/Inanspruchnahme_von_Routineimpfungen_in_Deutschland-Ergebnisse_aus_der_KV-Impfsurveillance
+    schedule: "0 3 * * 1"   # weekly, Mondays 03:00; the RKI publishes about quarterly
+    deployment_name: download__kvis_vaccination_rates
+    parameters:
+      sources:
+        - name: kvis_vaccination_rates_adults
+          display_name: "KV-Impfsurveillance Vaccination Rates: Adults"
+          description: Vaccination rates (Impfquoten) for vaccinations of adults and elderly people in Germany (influenza, pneumococcal, herpes zoster, pertussis, FSME and COVID-19), by reporting period, target group, age group, vaccination status and district. Calculated from billing data of the statutory health insurance physicians (KV-Impfsurveillance).
+          source_url: https://raw.githubusercontent.com/robert-koch-institut/Inanspruchnahme_von_Routineimpfungen_in_Deutschland-Ergebnisse_aus_der_KV-Impfsurveillance/refs/heads/main/KVIS_Impfquoten_Erwachsene.tsv
+          lakefs_object_path: vaccination/routine/RKI__kvis_vaccination_rates_adults.tsv
+          mariadb_table: kvis_vaccination_rates_adults
+        - name: kvis_vaccination_rates_children
+          display_name: "KV-Impfsurveillance Vaccination Rates: Children"
+          description: Vaccination rates (Impfquoten) for childhood vaccinations in Germany (16 vaccines), by birth year, age group, vaccination status and district. Calculated from billing data of the statutory health insurance physicians (KV-Impfsurveillance). The source file is stored in Git LFS and is resolved through media.githubusercontent.com.
+          source_url: https://raw.githubusercontent.com/robert-koch-institut/Inanspruchnahme_von_Routineimpfungen_in_Deutschland-Ergebnisse_aus_der_KV-Impfsurveillance/refs/heads/main/KVIS_Impfquoten_Kinder.tsv
+          lakefs_object_path: vaccination/routine/RKI__kvis_vaccination_rates_children.tsv
+          mariadb_table: kvis_vaccination_rates_children

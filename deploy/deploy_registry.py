@@ -8,6 +8,7 @@ from prefect.client.schemas.schedules import CronSchedule
 from prefect.runner.storage import GitRepository
 import yaml
 
+from flow.collection_flow import _validate_sources, run_dataset_collection
 from flow.dataset_flow import run_dataset
 
 GITHUB_REPO_URL = "https://github.com/The-EPISERVE-Consortium/workflow-prefect__dataset-downloader"
@@ -24,6 +25,18 @@ REQUIRED_PARAMETERS = {
     "mariadb_table",
     "mariadb_database",
 }
+# A collection (a dataset of several source files, see flow/collection_flow.py) has a ``sources`` list
+# instead of the single-file parameters; its files each name their own raw path and MariaDB table.
+COLLECTION_REQUIRED_PARAMETERS = {
+    "sources",
+    "lakefs_repo",
+    "lakefs_processed_repo",
+    "lakefs_branch",
+    "lakefs_commit_message",
+    "mariadb_database",
+    "qid_seed",
+}
+SINGLE_FILE_PARAMETERS = {"source_url", "lakefs_object_path", "mariadb_table"}
 
 
 def _require_prefect_api_url() -> str:
@@ -145,6 +158,8 @@ def _validate_dataset_config(
         merged_parameters["attribution"] = config["attribution"]
     if "qid_seed" not in merged_parameters and config.get("qid_seed") is not None:
         merged_parameters["qid_seed"] = config["qid_seed"]
+    if "dataset_url" not in merged_parameters and config.get("dataset_url") is not None:
+        merged_parameters["dataset_url"] = config["dataset_url"]
     merged_parameters.setdefault("dataset_name", dataset_key)
     if "run_daily" in merged_parameters:
         raise ValueError(
@@ -160,7 +175,22 @@ def _validate_dataset_config(
     else:
         raw_schedule = defaults.get("schedule")
     schedule = _normalize_schedule(dataset_key, raw_schedule)
-    missing = sorted(REQUIRED_PARAMETERS.difference(merged_parameters))
+    is_collection = "sources" in merged_parameters
+    if is_collection:
+        clash = sorted(SINGLE_FILE_PARAMETERS.intersection(merged_parameters))
+        if clash:
+            raise ValueError(
+                f"Dataset '{dataset_key}' has 'sources', so it must not also set {', '.join(clash)} "
+                "(each source names its own)."
+            )
+        try:
+            _validate_sources(merged_parameters["sources"])
+        except ValueError as exc:
+            raise ValueError(f"Dataset '{dataset_key}': {exc}") from exc
+    elif "dataset_url" in merged_parameters:
+        raise ValueError(f"Dataset '{dataset_key}': 'dataset_url' is only supported for datasets with 'sources'.")
+    required = COLLECTION_REQUIRED_PARAMETERS if is_collection else REQUIRED_PARAMETERS
+    missing = sorted(required.difference(merged_parameters))
     if missing:
         missing_list = ", ".join(missing)
         raise ValueError(f"Dataset '{dataset_key}' is missing required parameter(s): {missing_list}.")
@@ -186,9 +216,13 @@ def _deploy_dataset(deployment_name: str, parameters: dict[str, str], prefect_ap
     schedule_kwargs = {"schedules": [CronSchedule(cron=schedule, timezone=SCHEDULE_TIMEZONE)]} if schedule else {}
 
     try:
-        run_dataset.from_source(
+        if "sources" in parameters:
+            flow, entrypoint = run_dataset_collection, "flow/collection_flow.py:run_dataset_collection"
+        else:
+            flow, entrypoint = run_dataset, "flow/dataset_flow.py:run_dataset"
+        flow.from_source(
             source=GitRepository(url=GITHUB_REPO_URL, branch="main"),
-            entrypoint="flow/dataset_flow.py:run_dataset",
+            entrypoint=entrypoint,
         ).deploy(
             name=deployment_name,
             work_pool_name=WORK_POOL_NAME,

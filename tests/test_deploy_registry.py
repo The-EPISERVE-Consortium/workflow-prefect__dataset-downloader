@@ -222,11 +222,12 @@ def test_run_daily_is_no_longer_accepted():
         _validate_dataset_config("x", _entry(), {**DEFAULTS, "run_daily": True})
 
 
-def test_every_dataset_in_the_registry_keeps_the_nightly_schedule():
+def test_every_single_file_dataset_keeps_the_nightly_schedule_and_the_vaccination_collection_runs_weekly():
     defaults, datasets = _load_registry()
 
     schedules = {key: _validate_dataset_config(key, config, defaults)[2] for key, config in datasets.items()}
 
+    assert schedules.pop("kvis_vaccination_rates") == "0 3 * * 1"
     assert len(schedules) >= 15
     assert set(schedules.values()) == {NIGHTLY}
 
@@ -249,3 +250,95 @@ def test_deploy_attaches_the_cron_schedule_in_berlin_time():
 
 def test_deploy_without_schedule_passes_no_schedules():
     assert "schedules" not in _deploy(None)
+
+
+# --- collections (datasets of several source files) ---
+
+COLLECTION_DEFAULTS = {**DEFAULTS, "schedule": NIGHTLY}
+SOURCES = [
+    {"name": "adults", "source_url": "https://example.com/A.tsv", "lakefs_object_path": "p/RKI__a.tsv", "mariadb_table": "t_adults"},
+    {"name": "children", "source_url": "https://example.com/B.tsv", "lakefs_object_path": "p/RKI__b.tsv", "mariadb_table": "t_children"},
+]
+
+
+def _collection(**extra):
+    parameters = extra.pop("parameters", {"sources": SOURCES})
+    return {"deployment_name": "download__c", "qid_seed": "c_seed", "parameters": parameters, **extra}
+
+
+def test_collection_passes_sources_and_seed_to_the_flow():
+    name, parameters, schedule = _validate_dataset_config("c", _collection(dataset_url="https://example.com/repo"), COLLECTION_DEFAULTS)
+
+    assert name == "download__c"
+    assert parameters["sources"] == SOURCES
+    assert parameters["qid_seed"] == "c_seed"
+    assert parameters["dataset_url"] == "https://example.com/repo"
+    assert parameters["dataset_name"] == "c"
+    assert schedule == NIGHTLY
+
+
+def test_collection_needs_a_qid_seed():
+    config = _collection()
+    del config["qid_seed"]
+
+    with pytest.raises(ValueError, match="qid_seed"):
+        _validate_dataset_config("c", config, COLLECTION_DEFAULTS)
+
+
+def test_collection_must_not_also_set_single_file_parameters():
+    config = _collection(parameters={"sources": SOURCES, "source_url": "https://example.com/x.tsv", "mariadb_table": "t"})
+
+    with pytest.raises(ValueError, match="Dataset 'c'.*mariadb_table, source_url"):
+        _validate_dataset_config("c", config, COLLECTION_DEFAULTS)
+
+
+def test_collection_sources_are_validated_with_the_dataset_key():
+    bad = [{**SOURCES[0], "mariadb_table": ""}]
+
+    with pytest.raises(ValueError, match="Dataset 'c': Source #1 is missing required key.*mariadb_table"):
+        _validate_dataset_config("c", _collection(parameters={"sources": bad}), COLLECTION_DEFAULTS)
+
+
+def test_collection_needs_the_shared_lakefs_and_mariadb_parameters():
+    defaults = {k: v for k, v in COLLECTION_DEFAULTS.items() if k != "mariadb_database"}
+
+    with pytest.raises(ValueError, match="mariadb_database"):
+        _validate_dataset_config("c", _collection(), defaults)
+
+
+def test_dataset_url_is_only_for_collections():
+    with pytest.raises(ValueError, match="dataset_url.*sources"):
+        _validate_dataset_config("x", _entry(dataset_url="https://example.com/repo"), COLLECTION_DEFAULTS)
+
+
+def _deploy_flow(parameters):
+    with patch.object(deploy_registry, "run_dataset") as single, patch.object(deploy_registry, "run_dataset_collection") as collection, \
+            patch.dict("os.environ", {}):
+        _deploy_dataset("download__x", parameters, "http://prefect.example/api", None)
+    return single, collection
+
+
+def test_deploy_uses_the_collection_flow_when_there_are_sources():
+    single, collection = _deploy_flow({"sources": SOURCES})
+
+    collection.from_source.assert_called_once()
+    assert collection.from_source.call_args.kwargs["entrypoint"] == "flow/collection_flow.py:run_dataset_collection"
+    single.from_source.assert_not_called()
+
+
+def test_deploy_uses_the_single_file_flow_otherwise():
+    single, collection = _deploy_flow({"source_url": "https://example.com/x.tsv"})
+
+    single.from_source.assert_called_once()
+    assert single.from_source.call_args.kwargs["entrypoint"] == "flow/dataset_flow.py:run_dataset"
+    collection.from_source.assert_not_called()
+
+
+def test_the_vaccination_entry_in_the_registry_is_a_valid_collection():
+    defaults, datasets = _load_registry()
+
+    _, parameters, _ = _validate_dataset_config("kvis_vaccination_rates", datasets["kvis_vaccination_rates"], defaults)
+
+    assert [s["mariadb_table"] for s in parameters["sources"]] == ["kvis_vaccination_rates_adults", "kvis_vaccination_rates_children"]
+    assert parameters["qid_seed"] == "kvis_vaccination_rates"  # keeps the QID of the existing processed dataset
+    assert parameters["lakefs_repo"] == "data-raw" and parameters["lakefs_processed_repo"] == "data-processed"
