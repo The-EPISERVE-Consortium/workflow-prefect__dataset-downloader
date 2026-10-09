@@ -6,6 +6,8 @@ from pathlib import Path
 
 from prefect import task
 
+from tasks._sharding import shard_qid
+
 
 def mint_qid(source_url: str, seed_override: str | None = None) -> str:
     """Create a stable QID-like identifier for a source dataset.
@@ -141,5 +143,119 @@ def create_fdo_metadata(
             "prov:generatedAtTime": now,
             "prov:wasAttributedTo": "EPISERVE Consortium dataset downloader",
             "source_changed_at": source_changed_at or now,
+        },
+    }
+
+
+@task
+def create_collection_fdo(
+    dataset_name: str,
+    raw_fdos: list[dict],
+    components: list[dict],
+    lakefs_repo: str,
+    lakefs_branch: str,
+    qid_seed: str,
+    display_name: str | None = None,
+    description: str | None = None,
+    dataset_url: str | None = None,
+    license_id: str | None = None,
+    attribution: str | None = None,
+) -> dict:
+    """Build the processed FDO of a dataset that consists of several source files.
+
+    One processed FDO with one parquet component per source file, derived from the raw FDOs
+    of those files. The QID comes from ``qid_seed`` alone: the raw QIDs (one per source file)
+    cannot be reused because there are several of them.
+
+    Args:
+        dataset_name: Dataset key, used as ``profile.name``.
+        raw_fdos: The raw FDO of every source file (from ``create_fdo_metadata``).
+        components: The parquet files written for the sources, each a dict with ``componentId`` and ``size``.
+        lakefs_repo: lakeFS repository the parquet files are published to.
+        lakefs_branch: Branch of that repository.
+        qid_seed: String hashed into the dataset's QID. Required.
+        display_name: Optional human-facing name.
+        description: Optional description.
+        dataset_url: Optional page of the dataset as a whole; defaults to the first source URL.
+        license_id: Optional licence identifier (CKAN licence list value).
+        attribution: Optional credit line.
+
+    Returns:
+        The processed FDO metadata record.
+
+    Raises:
+        ValueError: If ``qid_seed`` is blank, or ``raw_fdos`` or ``components`` is empty.
+    """
+    if not qid_seed:
+        raise ValueError("A collection needs a qid_seed: its QID cannot be derived from one source file.")
+    if not raw_fdos or not components:
+        raise ValueError("A collection needs at least one source and one component.")
+
+    qid = mint_qid(raw_fdos[0]["profile"]["url"], qid_seed)
+    shard = shard_qid(qid)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    source_urls = [raw["profile"]["url"] for raw in raw_fdos]
+
+    licence_fields = {}
+    if license_id:
+        licence_fields["license"] = license_id
+    if attribution:
+        licence_fields["creditText"] = attribution
+
+    parquet_type = "application/vnd.apache.parquet"
+    distribution = [
+        {
+            "@type": "DataDownload",
+            "contentUrl": f"lakefs://{lakefs_repo}/{lakefs_branch}/{shard}/components/{comp['componentId']}",
+            "contentSize": comp["size"],
+            "encodingFormat": parquet_type,
+        }
+        for comp in components
+    ] + [{"@type": "DataDownload", "contentUrl": url} for url in source_urls]
+
+    return {
+        "@context": [
+            "https://w3id.org/fdo/context/v1",
+            {
+                "schema": "https://schema.org/",
+                "prov": "http://www.w3.org/ns/prov#",
+                "fdo": "https://w3id.org/fdo/vocabulary/",
+            },
+        ],
+        "@id": qid,
+        "@type": "DigitalObject",
+        "kernel": {
+            "@id": qid,
+            "digitalObjectType": "https://schema.org/Dataset",
+            "primaryIdentifier": qid,
+            "kernelVersion": "v1",
+            "immutable": False,
+            "modified": now,
+            "fdo:hasComponent": [
+                {"@id": f"components/{comp['componentId']}", "componentId": comp["componentId"], "mediaType": parquet_type}
+                for comp in components
+            ],
+        },
+        "profile": {
+            "@context": "https://schema.org/",
+            "@type": "Dataset",
+            "@id": qid,
+            "name": dataset_name,
+            "display_name": display_name or dataset_name,
+            "description": description or f"Dataset {dataset_name}",
+            "url": dataset_url or source_urls[0],
+            "additionalType": raw_fdos[0]["profile"].get("additionalType", ""),
+            "distribution": distribution,
+            **licence_fields,
+        },
+        "provenance": {
+            "prov:generatedAtTime": now,
+            "prov:wasAttributedTo": "EPISERVE Consortium dataset downloader",
+            "prov:wasDerivedFrom": [
+                {"@id": raw["@id"], "prov:hadPrimarySource": raw["profile"]["url"]} for raw in raw_fdos
+            ],
+            "source_changed_at": max(
+                (raw.get("provenance", {}).get("source_changed_at", "") for raw in raw_fdos), default=now
+            ) or now,
         },
     }

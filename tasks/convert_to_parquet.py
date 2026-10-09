@@ -2,6 +2,7 @@
 
 import io
 import json
+import os
 import random
 import time
 from pathlib import Path
@@ -11,26 +12,47 @@ from prefect import task
 
 from tasks._logging import get_logger
 from tasks.commit_to_lakefs import _get_lakefs_repository
+from tasks._sharding import shard_qid  # noqa: F401  (re-exported: tests and callers import it from here)
 from tasks.create_fdo_metadata import mint_qid
 
 
-def shard_qid(qid: str) -> str:
-    """Return the sharded directory prefix for a QID using 2-2-2 padding.
+def _commit_changes(branch, repo: str, branch_name: str, message: str, logger) -> None:
+    """Commit everything uncommitted on a lakeFS branch, retrying on concurrent-commit conflicts.
 
-    Args:
-        qid: Identifier beginning with ``Q`` followed by digits.
+    Does nothing when there are no uncommitted changes. Retries up to three times with a random
+    delay when lakeFS reports a ``predicate failed`` conflict (another flow committed meanwhile).
 
-    Returns:
-        str: Sharded prefix in the form ``pp/qq/rr/Qxxxx``.
+    Raises:
+        RuntimeError: If the conflict persists after three attempts.
     """
-    normalized = qid.upper()
-    if not normalized.startswith("Q"):
-        raise ValueError("QID must start with 'Q'")
-    digits = normalized[1:]
-    if not digits.isdigit():
-        raise ValueError("QID must contain digits after 'Q'")
-    padded = digits.zfill(6)
-    return f"{padded[0:2]}/{padded[2:4]}/{padded[4:6]}/{normalized}"
+    changes = list(branch.uncommitted())
+    if not changes:
+        logger.info("No uncommitted lakeFS changes detected on %s/%s", repo, branch_name)
+        return
+
+    for attempt in range(1, 4):
+        try:
+            ref = branch.commit(message=message)
+            logger.info("Committed parquet %s on %s/%s", getattr(ref, "id", "<unknown>"), repo, branch_name)
+            break
+        except Exception as e:
+            if "no changes" in str(e).lower():
+                logger.info("No changes to commit on %s/%s", repo, branch_name)
+                break
+            elif "predicate failed" in str(e).lower():
+                if attempt < 3:
+                    delay = random.uniform(3, 10)
+                    logger.warning(
+                        "Commit conflict on %s/%s (predicate failed), retrying in %.1fs (attempt %d/3)",
+                        repo, branch_name, delay, attempt,
+                    )
+                    time.sleep(delay)
+                else:
+                    raise RuntimeError(
+                        f"Commit to {repo}/{branch_name} failed after 3 attempts due to concurrent modifications"
+                    ) from e
+            else:
+                raise
 
 
 @task
@@ -123,31 +145,62 @@ def convert_to_parquet(
         pre_sign=False,
     )
 
-    changes = list(branch.uncommitted())
-    if not changes:
-        logger.info("No uncommitted lakeFS changes detected on %s/%s", lakefs_repo, lakefs_branch)
-        return
+    _commit_changes(branch, lakefs_repo, lakefs_branch, f"Parquet conversion of {canonical_qid}", logger)
 
-    for attempt in range(1, 4):
-        try:
-            ref = branch.commit(message=f"Parquet conversion of {canonical_qid}")
-            logger.info("Committed parquet %s on %s/%s", getattr(ref, "id", "<unknown>"), lakefs_repo, lakefs_branch)
-            break
-        except Exception as e:
-            if "no changes" in str(e).lower():
-                logger.info("No changes to commit on %s/%s", lakefs_repo, lakefs_branch)
-                break
-            elif "predicate failed" in str(e).lower():
-                if attempt < 3:
-                    delay = random.uniform(3, 10)
-                    logger.warning(
-                        "Commit conflict on %s/%s (predicate failed), retrying in %.1fs (attempt %d/3)",
-                        lakefs_repo, lakefs_branch, delay, attempt,
-                    )
-                    time.sleep(delay)
-                else:
-                    raise RuntimeError(
-                        f"Commit to {lakefs_repo}/{lakefs_branch} failed after 3 attempts due to concurrent modifications"
-                    ) from e
-            else:
-                raise
+
+@task
+def write_parquet_component(df: pd.DataFrame, source_url: str, directory: str) -> dict:
+    """Write one source's DataFrame to a local Parquet file, named after the source file.
+
+    Writing locally (not to lakeFS) lets a multi-source flow release each DataFrame before the
+    next source is processed, and publish all files in one quick step at the end, so the
+    branch never holds a half-finished set of files.
+
+    Args:
+        df: DataFrame to store.
+        source_url: URL of the source file; its filename stem names the parquet file.
+        directory: Local directory to write into.
+
+    Returns:
+        ``{"componentId": <file name>, "local_path": <path>, "size": <bytes>}``.
+    """
+    name = Path(source_url.split("?")[0]).stem + ".parquet"
+    local_path = os.path.join(directory, name)
+    df.to_parquet(local_path, index=False)
+    return {"componentId": name, "local_path": local_path, "size": os.path.getsize(local_path)}
+
+
+@task
+def publish_collection(
+    fdo: dict,
+    components: list[dict],
+    lakefs_repo: str,
+    lakefs_branch: str = "main",
+) -> None:
+    """Upload the Parquet files and the FDO of a multi-source dataset and commit them together.
+
+    Args:
+        fdo: Processed FDO from ``create_collection_fdo``; its ``@id`` determines the sharded path.
+        components: Files from ``write_parquet_component`` (``componentId`` and ``local_path``).
+        lakefs_repo: lakeFS repository for processed data.
+        lakefs_branch: Branch to commit to.
+    """
+    logger = get_logger(__name__)
+    qid = fdo["@id"]
+    shard = shard_qid(qid)
+    branch = _get_lakefs_repository(lakefs_repo).branch(lakefs_branch)
+
+    for comp in components:
+        path = f"{shard}/components/{comp['componentId']}"
+        logger.info("Uploading parquet to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, path)
+        with open(comp["local_path"], "rb") as f:
+            # pre_sign=False: see convert_to_parquet (presigned PUTs are rejected by the object store)
+            branch.object(path).upload(data=f.read(), content_type="application/vnd.apache.parquet", pre_sign=False)
+
+    fdo_path = f"{shard}/{qid}.fdo.json"
+    logger.info("Uploading FDO metadata to lakeFS %s/%s/%s", lakefs_repo, lakefs_branch, fdo_path)
+    branch.object(fdo_path).upload(
+        data=json.dumps(fdo, indent=2).encode(), content_type="application/json", pre_sign=False
+    )
+
+    _commit_changes(branch, lakefs_repo, lakefs_branch, f"Parquet conversion of {qid}", logger)
