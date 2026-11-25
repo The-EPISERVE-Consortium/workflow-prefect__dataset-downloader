@@ -500,3 +500,19 @@ def test_a_collection_file_that_shares_a_file_name_with_a_single_dataset_is_repo
     # The raw QID of a source file comes from the file name of its URL, as for a single-file dataset.
     message = _problems(c=_good_collection(), x=_good("x", "A.tsv"))
     assert "would get the same QID" in message
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"sources": "abc"},
+        {"sources": ["abc"]},
+        {"sources": [{"name": "a", "source_url": 5, "lakefs_object_path": "p", "mariadb_table": "t"}]},
+    ],
+)
+def test_a_collection_of_the_wrong_shape_is_reported_not_crashed_on(parameters):
+    assert "Dataset 'c'" in _problems(c=_good_collection(parameters=parameters))
+
+
+def test_a_source_url_that_is_not_a_string_is_reported_not_crashed_on():
+    assert "Dataset 'x'" in _problems(x=_good(parameters={"source_url": 5}))

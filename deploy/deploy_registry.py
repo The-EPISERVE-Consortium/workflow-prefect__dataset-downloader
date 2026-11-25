@@ -174,11 +174,19 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
         config = datasets[key]
         try:
             _, parameters, _ = _validate_dataset_config(key, config, defaults or {})
+            found = check_entry(key, config, parameters)
         except ValueError as exc:
             problems.append(str(exc))
             continue
-        problems += [f"Dataset '{key}': {m}" for m in check_entry(key, config, parameters)]
-        for qid in _qids(config, parameters):
+        except (AttributeError, TypeError, KeyError, IndexError) as exc:  # a value of the wrong type
+            problems.append(f"Dataset '{key}': malformed entry ({type(exc).__name__}: {exc})")
+            continue
+        problems += [f"Dataset '{key}': {m}" for m in found]
+        try:
+            qids = _qids(config, parameters)
+        except (AttributeError, TypeError, KeyError, IndexError):  # too malformed to hash; check_entry said why
+            qids = []
+        for qid in qids:
             other = owners.setdefault(qid, key)
             if other != key:
                 problems.append(
