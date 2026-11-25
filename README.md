@@ -39,13 +39,24 @@ Deploy all enabled datasets from `deploy/datasets.yaml`:
 PREFECT_API_URL=https://<your-prefect-server>/api python -m deploy --all
 ```
 
-Add or change deployments by editing `deploy/datasets.yaml`. Dataset entries may include optional
-`display_name` and `description` fields; if omitted, generated metadata uses the dataset key as the
-display name and `Dataset <dataset_name>` as the description. Optional `license_id` (a CKAN licence
-list value, e.g. `cc-by`) and `attribution` (a free-text credit line) are written into the FDO
-profile and surface in CKAN as the dataset's licence and an `attribution` extra. Optional `qid_seed`
-overrides the string hashed into the dataset's QID — needed only when the source URL filename is not
-unique (the two Open-Meteo weather endpoints both resolve to `forecast`).
+Add or change deployments by editing `deploy/datasets.yaml`. Every entry needs `display_name`,
+`description`, `license_id` (a CKAN licence list value, e.g. `cc-by`) and `attribution` (a free-text
+credit line): the catalog shows them, and `license_id` and `attribution` are written into the FDO
+profile. Optional `qid_seed` overrides the string hashed into the dataset's QID: it is needed when the
+source URL filename is not unique (the two Open-Meteo weather endpoints both resolve to `forecast`) or
+when two entries have a file of the same name.
+
+`pytest` checks the whole registry (`check_registry` in `deploy/deploy_registry.py`), so a mistake
+fails on the pull request, not at the deploy:
+
+- required fields and parameters are present, the cron expression is valid, no key or parameter
+  name is misspelled (an unknown one is an error);
+- the key is lowercase with underscores, `deployment_name` is `download__<key>`, `mariadb_table` is
+  the key (for a collection: the key or the key plus `_<name>`);
+- `source_url` is an `https://` URL and `lakefs_object_path` is
+  `<category>[/<subcategory>]/<PROVIDER>__<name>.<csv|tsv>` with a category from `CATEGORIES` (a new
+  category is added there, in the pull request that needs it);
+- no two entries would get the same QID.
 
 The schedule is set with `schedule`, a cron expression in Europe/Berlin time. `defaults:` sets it to
 `"0 1 * * *"` (every night at 01:00), so datasets run nightly unless an entry overrides it, either as a
