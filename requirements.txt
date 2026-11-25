@@ -4,4 +4,5 @@ pyarrow
 pymysql
 lakefs
 pyyaml
+episerve-specs @ https://github.com/The-EPISERVE-Consortium/episerve_specs/archive/refs/tags/v0.6.0.tar.gz
 pytest
