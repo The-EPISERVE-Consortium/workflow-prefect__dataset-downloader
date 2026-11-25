@@ -445,8 +445,9 @@ def test_a_category_without_subcategory_is_accepted():
     _check(x=_good(parameters={"lakefs_object_path": "wastewater/RKI__x.tsv"}))
 
 
-def test_the_source_url_must_be_https():
-    assert "source_url must be an https:// URL" in _problems(x=_good(parameters={"source_url": "http://example.com/x.tsv"}))
+@pytest.mark.parametrize("url", ["http://example.com/x.tsv", "https://", "https://[invalid", "https://example.com:bad/x.tsv"])
+def test_the_source_url_must_be_https_with_a_hostname(url):
+    assert "source_url must be an https:// URL with a hostname" in _problems(x=_good(parameters={"source_url": url}))
 
 
 def test_two_datasets_with_the_same_file_name_would_share_a_qid():
@@ -458,9 +459,22 @@ def test_a_qid_seed_separates_them():
     _check(a=_good("a", "RKI__same.tsv"), b=_good("b", "RKI__same.tsv", qid_seed="b"))
 
 
+@pytest.mark.parametrize("seed", [17, "", "  "])
+def test_an_explicit_qid_seed_must_be_a_non_blank_string(seed):
+    assert "qid_seed must be a non-blank string" in _problems(x=_good(parameters={"qid_seed": seed}))
+
+
 def test_every_problem_of_every_entry_is_reported_at_once():
     message = _problems(a=_good("a", license_id=None), b=_good("b", deployment_name="download__x"))
     assert "Dataset 'a': license_id is required" in message and "Dataset 'b': deployment_name must be" in message
+
+
+def test_a_numeric_key_is_reported_alongside_problems_in_other_entries():
+    defaults, _ = _load_registry()
+    with pytest.raises(ValueError) as exc:
+        deploy_registry.check_registry(defaults, {17: _good(), "x": _good(license_id=None)})
+    assert "Dataset 17: the key must be a string" in str(exc.value)
+    assert "Dataset 'x': license_id is required" in str(exc.value)
 
 
 def _good_collection(key="c", **extra):
@@ -480,6 +494,10 @@ def _good_collection(key="c", **extra):
 
 def test_a_valid_collection_passes():
     _check(c=_good_collection())
+
+
+def test_a_collection_requires_a_non_blank_seed():
+    assert "qid_seed must be a non-blank string" in _problems(c=_good_collection(qid_seed=" "))
 
 
 def test_a_collection_source_follows_the_conventions_too():
