@@ -342,3 +342,161 @@ def test_the_vaccination_entry_in_the_registry_is_a_valid_collection():
     assert [s["mariadb_table"] for s in parameters["sources"]] == ["kvis_vaccination_rates_adults", "kvis_vaccination_rates_children"]
     assert parameters["qid_seed"] == "kvis_vaccination_rates"  # keeps the QID of the existing processed dataset
     assert parameters["lakefs_repo"] == "data-raw" and parameters["lakefs_processed_repo"] == "data-processed"
+
+
+# ── conventions of the registry (check_registry) ──────────────────────────────
+
+from deploy.deploy_registry import check_registry  # noqa: E402
+
+
+def _good(key="x", file="RKI__x.tsv", **extra):
+    """A valid single-file entry for the key; ``extra`` replaces top-level keys, ``parameters`` is merged."""
+    entry = {
+        "enabled": True,
+        "display_name": "X",
+        "description": "What X contains.",
+        "license_id": "cc-by",
+        "attribution": "Provider, X, licensed under CC BY 4.0.",
+        "deployment_name": f"download__{key}",
+        "parameters": {
+            "source_url": f"https://example.com/{file}",
+            "lakefs_object_path": f"incidence/influenza/{file}",
+            "mariadb_table": key,
+            **extra.pop("parameters", {}),
+        },
+    }
+    entry.update(extra)
+    return entry
+
+
+def _check(**entries):
+    check_registry(DEFAULTS, entries)
+
+
+def _problems(**entries):
+    with pytest.raises(ValueError) as error:
+        _check(**entries)
+    return str(error.value)
+
+
+def test_the_registry_follows_its_conventions():
+    check_registry()
+
+
+def test_a_valid_entry_passes():
+    _check(x=_good())
+
+
+@pytest.mark.parametrize("field", ["display_name", "description", "license_id", "attribution"])
+def test_the_catalog_metadata_is_required(field):
+    entry = _good()
+    del entry[field]
+    assert f"Dataset 'x': {field} is required" in _problems(x=entry)
+
+
+def test_blank_metadata_counts_as_missing():
+    assert "license_id is required" in _problems(x=_good(license_id="  "))
+
+
+def test_metadata_may_also_sit_under_parameters():
+    entry = _good()
+    entry["parameters"]["license_id"] = entry.pop("license_id")
+    _check(x=entry)
+
+
+def test_a_misspelled_parameter_is_reported():
+    assert "unknown parameter(s): source_skiprow" in _problems(x=_good(parameters={"source_skiprow": 3}))
+
+
+def test_a_misspelled_top_level_key_is_reported():
+    assert "unknown key(s) next to 'parameters': licence_id" in _problems(x=_good(licence_id="cc-by"))
+
+
+def test_the_deployment_name_follows_the_key():
+    assert "deployment_name must be 'download__x'" in _problems(x=_good(deployment_name="download__y"))
+
+
+@pytest.mark.parametrize("key", ["X", "my-data", "1x"])
+def test_the_key_is_lowercase_with_underscores(key):
+    assert "the key must be lowercase" in _problems(**{key: _good(key)})
+
+
+def test_the_table_is_named_like_the_key():
+    assert "mariadb_table must be the dataset key 'x'" in _problems(x=_good(parameters={"mariadb_table": "other"}))
+
+
+@pytest.mark.parametrize(
+    "path, message",
+    [
+        ("incidnce/influenza/RKI__x.tsv", "unknown category 'incidnce'"),
+        ("incidence/flu/RKI__x.tsv", "must look like incidence/<"),
+        ("incidence/RKI__x.tsv", "must look like incidence/<"),
+        ("wastewater/extra/RKI__x.tsv", "must look like wastewater/<file>"),
+        ("incidence/influenza/x.tsv", "file name must look like PROVIDER__name"),
+        ("incidence/influenza/RKI__x.json", "file name must look like PROVIDER__name"),
+        ("incidence/influenza/RKI__X.tsv", "file name must look like PROVIDER__name"),
+    ],
+)
+def test_the_object_path_follows_the_layout(path, message):
+    assert message in _problems(x=_good(parameters={"lakefs_object_path": path}))
+
+
+def test_a_category_without_subcategory_is_accepted():
+    _check(x=_good(parameters={"lakefs_object_path": "wastewater/RKI__x.tsv"}))
+
+
+def test_the_source_url_must_be_https():
+    assert "source_url must be an https:// URL" in _problems(x=_good(parameters={"source_url": "http://example.com/x.tsv"}))
+
+
+def test_two_datasets_with_the_same_file_name_would_share_a_qid():
+    message = _problems(a=_good("a", "RKI__same.tsv"), b=_good("b", "RKI__same.tsv"))
+    assert "Datasets 'a' and 'b' would get the same QID" in message and "qid_seed" in message
+
+
+def test_a_qid_seed_separates_them():
+    _check(a=_good("a", "RKI__same.tsv"), b=_good("b", "RKI__same.tsv", qid_seed="b"))
+
+
+def test_every_problem_of_every_entry_is_reported_at_once():
+    message = _problems(a=_good("a", license_id=None), b=_good("b", deployment_name="download__x"))
+    assert "Dataset 'a': license_id is required" in message and "Dataset 'b': deployment_name must be" in message
+
+
+def _good_collection(key="c", **extra):
+    entry = _good(key, qid_seed=key, schedule="0 3 * * 1")
+    entry["parameters"] = {
+        "sources": [
+            {"name": f"{key}_a", "source_url": "https://example.com/A.tsv",
+             "lakefs_object_path": "vaccination/routine/RKI__a.tsv", "mariadb_table": f"{key}_a"},
+            {"name": f"{key}_b", "source_url": "https://example.com/B.tsv",
+             "lakefs_object_path": "vaccination/routine/RKI__b.tsv", "mariadb_table": f"{key}_b"},
+        ],
+        **extra.pop("parameters", {}),
+    }
+    entry.update(extra)
+    return entry
+
+
+def test_a_valid_collection_passes():
+    _check(c=_good_collection())
+
+
+def test_a_collection_source_follows_the_conventions_too():
+    entry = _good_collection()
+    entry["parameters"]["sources"][1]["lakefs_object_path"] = "vaccination/RKI__b.tsv"
+    entry["parameters"]["sources"][0]["mariadb_table"] = "other"
+    message = _problems(c=entry)
+    assert "source #2: lakefs_object_path" in message and "source #1: mariadb_table must be 'c' or start with 'c_'" in message
+
+
+def test_a_misspelled_source_key_is_reported():
+    entry = _good_collection()
+    entry["parameters"]["sources"][0]["source_skiprow"] = 1
+    assert "source #1: unknown key(s): source_skiprow" in _problems(c=entry)
+
+
+def test_a_collection_file_that_shares_a_file_name_with_a_single_dataset_is_reported():
+    # The raw QID of a source file comes from the file name of its URL, as for a single-file dataset.
+    message = _problems(c=_good_collection(), x=_good("x", "A.tsv"))
+    assert "would get the same QID" in message

@@ -1,6 +1,8 @@
 """Shared deployment helper for YAML-backed dataset deployments."""
 
+import inspect
 import os
+import re
 from pathlib import Path
 from json import JSONDecodeError
 
@@ -10,6 +12,7 @@ import yaml
 
 from flow.collection_flow import _validate_sources, run_dataset_collection
 from flow.dataset_flow import run_dataset
+from tasks.create_fdo_metadata import mint_qid
 
 GITHUB_REPO_URL = "https://github.com/The-EPISERVE-Consortium/workflow-prefect__dataset-downloader"
 DOCKER_IMAGE = "ghcr.io/the-episerve-consortium/workflow-prefect__dataset-downloader:latest"
@@ -37,6 +40,153 @@ COLLECTION_REQUIRED_PARAMETERS = {
     "qid_seed",
 }
 SINGLE_FILE_PARAMETERS = {"source_url", "lakefs_object_path", "mariadb_table"}
+
+
+# --- Conventions of the registry, checked by check_registry() (run by the tests, so by CI on every pull request) ---
+
+# What the catalog shows about a dataset; the flows treat these as optional, the registry does not.
+REQUIRED_METADATA = ("display_name", "description", "license_id", "attribution")
+# Keys an entry may have next to ``parameters``.
+ENTRY_KEYS = {
+    "enabled", "deployment_name", "parameters", "qid_seed", "dataset_url", "schedule", *REQUIRED_METADATA,
+}
+SOURCE_KEYS = {
+    "name", "source_url", "lakefs_object_path", "mariadb_table", "display_name", "description",
+    "source_delimiter", "source_skiprows",
+}
+# Categories of the catalog: the first part of ``lakefs_object_path``, and the second part where there is one.
+# A new category is added here, in the pull request that needs it.
+CATEGORIES = {
+    "incidence": {"influenza", "covid", "rsv", "respiratory"},
+    "surveillance": {"hospital", "emergency_dept", "respiratory"},
+    "wastewater": set(),
+    "vaccination": {"routine"},
+    "climate": {"temperature"},
+}
+_KEY = re.compile(r"[a-z][a-z0-9_]*")
+_OBJECT_FILE = re.compile(r"[A-Za-z0-9-]+__[a-z0-9_]+\.(csv|tsv)")  # PROVIDER__name.csv or .tsv
+
+
+def _object_path_problem(path) -> str | None:
+    """Why ``path`` is not a valid ``lakefs_object_path``: ``<category>[/<subcategory>]/<PROVIDER>__<name>.<csv|tsv>``."""
+    if not isinstance(path, str):
+        return f"lakefs_object_path must be a string, got {path!r}"
+    parts = path.split("/")
+    category = parts[0]
+    if category not in CATEGORIES:
+        return (f"lakefs_object_path {path!r}: unknown category {category!r} (known: {', '.join(sorted(CATEGORIES))}; "
+                "add a new one to CATEGORIES in deploy/deploy_registry.py)")
+    subcategories = CATEGORIES[category]
+    expected_parts = 3 if subcategories else 2
+    if len(parts) != expected_parts or (subcategories and parts[1] not in subcategories):
+        shape = f"{category}/<{'|'.join(sorted(subcategories))}>/<file>" if subcategories else f"{category}/<file>"
+        return f"lakefs_object_path {path!r} must look like {shape}"
+    if not _OBJECT_FILE.fullmatch(parts[-1]):
+        return f"lakefs_object_path {path!r}: the file name must look like PROVIDER__name.csv or PROVIDER__name.tsv"
+    return None
+
+
+def check_entry(dataset_key: str, config: dict, parameters: dict) -> list[str]:
+    """The problems of one entry against the conventions of the registry (empty when there are none).
+
+    Args:
+        dataset_key: The entry's key in ``datasets:``.
+        config: The entry as written.
+        parameters: The entry's flow parameters after ``_validate_dataset_config`` merged the defaults.
+    """
+    problems = []
+    if not _KEY.fullmatch(dataset_key):
+        problems.append("the key must be lowercase letters, digits and underscores, starting with a letter")
+    if config.get("deployment_name") != f"download__{dataset_key}":
+        problems.append(f"deployment_name must be 'download__{dataset_key}', got {config.get('deployment_name')!r}")
+    unknown = sorted(set(config) - ENTRY_KEYS)
+    if unknown:
+        problems.append(f"unknown key(s) next to 'parameters': {', '.join(unknown)} (known: {', '.join(sorted(ENTRY_KEYS))})")
+
+    is_collection = "sources" in parameters
+    flow = run_dataset_collection if is_collection else run_dataset
+    unknown = sorted(set(parameters) - set(inspect.signature(flow.fn).parameters))
+    if unknown:
+        problems.append(f"unknown parameter(s): {', '.join(unknown)}")
+
+    for field in REQUIRED_METADATA:
+        value = parameters.get(field)
+        if not isinstance(value, str) or not value.strip():
+            problems.append(f"{field} is required: the catalog shows it")
+
+    if is_collection:
+        for index, source in enumerate(parameters["sources"], start=1):
+            label = f"source #{index}"
+            unknown = sorted(set(source) - SOURCE_KEYS)
+            if unknown:
+                problems.append(f"{label}: unknown key(s): {', '.join(unknown)}")
+            problems += [f"{label}: {m}" for m in _source_problems(dataset_key, source, collection=True)]
+    else:
+        problems += _source_problems(dataset_key, parameters, collection=False)
+    return problems
+
+
+def _source_problems(dataset_key: str, source: dict, *, collection: bool) -> list[str]:
+    problems = []
+    url = source.get("source_url")
+    if not isinstance(url, str) or not url.startswith("https://"):
+        problems.append(f"source_url must be an https:// URL, got {url!r}")
+    problem = _object_path_problem(source.get("lakefs_object_path"))
+    if problem:
+        problems.append(problem)
+    table = source.get("mariadb_table")
+    if collection:
+        if not (table == dataset_key or str(table).startswith(f"{dataset_key}_")):
+            problems.append(f"mariadb_table must be '{dataset_key}' or start with '{dataset_key}_', got {table!r}")
+    elif table != dataset_key:
+        problems.append(f"mariadb_table must be the dataset key '{dataset_key}', got {table!r}")
+    return problems
+
+
+def _qids(config: dict, parameters: dict) -> list[str]:
+    """Every QID a dataset's files get: the dataset, and its raw file(s) (with the ``-raw`` suffix)."""
+    seed = parameters.get("qid_seed")
+    if "sources" in parameters:
+        raw = [mint_qid(source["source_url"]) + "-raw" for source in parameters["sources"]]
+        return [mint_qid(parameters["sources"][0]["source_url"], seed), *raw]
+    qid = mint_qid(parameters["source_url"], seed)
+    return [qid, qid + "-raw"]
+
+
+def check_registry(defaults: dict | None = None, datasets: dict | None = None) -> None:
+    """Check every entry of ``deploy/datasets.yaml`` against the conventions and against each other.
+
+    Runs ``_validate_dataset_config`` on each entry, then ``check_entry``, then looks for entries whose files
+    would get the same QID (the file name of ``source_url`` is hashed; ``qid_seed`` overrides it).
+
+    Args:
+        defaults: The registry's defaults; the file's, when omitted.
+        datasets: The registry's entries; the file's, when omitted.
+
+    Raises:
+        ValueError: With one line per problem, each naming the entry.
+    """
+    if datasets is None:
+        defaults, datasets = _load_registry()
+    problems = []
+    owners: dict[str, str] = {}
+    for key in sorted(datasets):
+        config = datasets[key]
+        try:
+            _, parameters, _ = _validate_dataset_config(key, config, defaults or {})
+        except ValueError as exc:
+            problems.append(str(exc))
+            continue
+        problems += [f"Dataset '{key}': {m}" for m in check_entry(key, config, parameters)]
+        for qid in _qids(config, parameters):
+            other = owners.setdefault(qid, key)
+            if other != key:
+                problems.append(
+                    f"Datasets '{other}' and '{key}' would get the same QID {qid}: "
+                    "set a different qid_seed on one of them"
+                )
+    if problems:
+        raise ValueError("\n".join(problems))
 
 
 def _require_prefect_api_url() -> str:
