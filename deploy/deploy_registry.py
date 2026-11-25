@@ -192,8 +192,14 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
     """
     if datasets is None:
         defaults, datasets = _load_registry()
+    _validated_registry(defaults or {}, datasets)
+
+
+def _validated_registry(defaults: dict, datasets: dict) -> dict[str, tuple[str, dict, str | None]]:
+    """Prepare deployment arguments after validating the entire registry."""
     problems = []
     owners: dict[str, str] = {}
+    deployments = {}
     keys = []
     for key in datasets:
         if isinstance(key, str):
@@ -203,7 +209,8 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
     for key in sorted(keys):
         config = datasets[key]
         try:
-            _, parameters, _ = _validate_dataset_config(key, config, defaults or {})
+            deployment = _validate_dataset_config(key, config, defaults)
+            _, parameters, _ = deployment
             found = check_entry(key, config, parameters)
         except ValueError as exc:
             problems.append(str(exc))
@@ -212,6 +219,7 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
             problems.append(f"Dataset '{key}': malformed entry ({type(exc).__name__}: {exc})")
             continue
         problems += [f"Dataset '{key}': {m}" for m in found]
+        deployments[key] = deployment
         try:
             qids = _qids(parameters)
         except UnicodeError:
@@ -226,6 +234,7 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
                 )
     if problems:
         raise ValueError("\n".join(problems))
+    return deployments
 
 
 def _require_prefect_api_url() -> str:
@@ -314,7 +323,7 @@ def _validate_dataset_config(
     dataset_key: str,
     config: dict,
     defaults: dict[str, str],
-) -> tuple[str, dict[str, str], bool]:
+) -> tuple[str, dict[str, str], str | None]:
     """Validate and normalize one dataset registry entry.
 
     Args:
@@ -445,20 +454,13 @@ def deploy_from_registry(dataset_key: str | None = None) -> None:
         RuntimeError: If the Prefect API URL is not a valid API endpoint.
     """
     defaults, datasets = _load_registry()
+    deployments = _validated_registry(defaults, datasets)
+    if dataset_key and dataset_key not in deployments:
+        available = ", ".join(deployments)
+        raise ValueError(f"Unknown dataset '{dataset_key}'. Available datasets: {available}")
+    selected = [deployments[dataset_key]] if dataset_key else [
+        deployment for key, deployment in deployments.items() if datasets[key].get("enabled", True)
+    ]
     prefect_api_url = _require_prefect_api_url()
-
-    if dataset_key:
-        config = datasets.get(dataset_key)
-        if config is None:
-            available = ", ".join(sorted(datasets))
-            raise ValueError(f"Unknown dataset '{dataset_key}'. Available datasets: {available}")
-        deployment_name, parameters, schedule = _validate_dataset_config(dataset_key, config, defaults)
-        _deploy_dataset(deployment_name, parameters, prefect_api_url, schedule)
-        return
-
-    for key in sorted(datasets):
-        config = datasets[key]
-        if not config.get("enabled", True):
-            continue
-        deployment_name, parameters, schedule = _validate_dataset_config(key, config, defaults)
+    for deployment_name, parameters, schedule in selected:
         _deploy_dataset(deployment_name, parameters, prefect_api_url, schedule)
