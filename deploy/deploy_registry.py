@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 from json import JSONDecodeError
+from urllib.parse import urlsplit
 
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.runner.storage import GitRepository
@@ -114,6 +115,11 @@ def check_entry(dataset_key: str, config: dict, parameters: dict) -> list[str]:
         if not isinstance(value, str) or not value.strip():
             problems.append(f"{field} is required: the catalog shows it")
 
+    if is_collection or "qid_seed" in parameters or "qid_seed" in config:
+        seed = parameters.get("qid_seed")
+        if not isinstance(seed, str) or not seed.strip():
+            problems.append("qid_seed must be a non-blank string")
+
     if is_collection:
         for index, source in enumerate(parameters["sources"], start=1):
             label = f"source #{index}"
@@ -126,11 +132,22 @@ def check_entry(dataset_key: str, config: dict, parameters: dict) -> list[str]:
     return problems
 
 
+def _is_https_url(value: object) -> bool:
+    if not isinstance(value, str) or any(char.isspace() for char in value):
+        return False
+    try:
+        url = urlsplit(value)
+        url.port  # Raises for malformed or out-of-range ports.
+        return url.scheme == "https" and bool(url.hostname)
+    except ValueError:
+        return False
+
+
 def _source_problems(dataset_key: str, source: dict, *, collection: bool) -> list[str]:
     problems = []
     url = source.get("source_url")
-    if not isinstance(url, str) or not url.startswith("https://"):
-        problems.append(f"source_url must be an https:// URL, got {url!r}")
+    if not _is_https_url(url):
+        problems.append(f"source_url must be an https:// URL with a hostname, got {url!r}")
     problem = _object_path_problem(source.get("lakefs_object_path"))
     if problem:
         problems.append(problem)
@@ -143,13 +160,20 @@ def _source_problems(dataset_key: str, source: dict, *, collection: bool) -> lis
     return problems
 
 
-def _qids(config: dict, parameters: dict) -> list[str]:
+def _qids(parameters: dict) -> list[str]:
     """Every QID a dataset's files get: the dataset, and its raw file(s) (with the ``-raw`` suffix)."""
     seed = parameters.get("qid_seed")
+    if seed is not None and (not isinstance(seed, str) or not seed.strip()):
+        return []
     if "sources" in parameters:
+        if seed is None:
+            return []
         raw = [mint_qid(source["source_url"]) + "-raw" for source in parameters["sources"]]
         return [mint_qid(parameters["sources"][0]["source_url"], seed), *raw]
-    qid = mint_qid(parameters["source_url"], seed)
+    source_url = parameters["source_url"]
+    if not isinstance(source_url, str):
+        return []
+    qid = mint_qid(source_url, seed)
     return [qid, qid + "-raw"]
 
 
@@ -170,7 +194,13 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
         defaults, datasets = _load_registry()
     problems = []
     owners: dict[str, str] = {}
-    for key in sorted(datasets):
+    keys = []
+    for key in datasets:
+        if isinstance(key, str):
+            keys.append(key)
+        else:
+            problems.append(f"Dataset {key!r}: the key must be a string")
+    for key in sorted(keys):
         config = datasets[key]
         try:
             _, parameters, _ = _validate_dataset_config(key, config, defaults or {})
@@ -183,9 +213,10 @@ def check_registry(defaults: dict | None = None, datasets: dict | None = None) -
             continue
         problems += [f"Dataset '{key}': {m}" for m in found]
         try:
-            qids = _qids(config, parameters)
-        except (AttributeError, TypeError, KeyError, IndexError):  # too malformed to hash; check_entry said why
-            qids = []
+            qids = _qids(parameters)
+        except UnicodeError:
+            problems.append(f"Dataset '{key}': source_url or qid_seed contains invalid Unicode")
+            continue
         for qid in qids:
             other = owners.setdefault(qid, key)
             if other != key:
@@ -228,6 +259,8 @@ def _load_registry() -> tuple[dict[str, str], dict[str, dict]]:
     with REGISTRY_PATH.open(encoding="utf-8") as infile:
         data = yaml.safe_load(infile) or {}
 
+    if not isinstance(data, dict):
+        raise ValueError("deploy/datasets.yaml must contain a top-level mapping.")
     defaults = data.get("defaults", {})
     datasets = data.get("datasets")
     if not isinstance(defaults, dict):
