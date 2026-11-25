@@ -379,6 +379,30 @@ def _problems(**entries):
     return str(error.value)
 
 
+def test_a_bad_later_entry_prevents_every_deploy(monkeypatch):
+    entries = {"a": _good("a", "RKI__a.tsv"), "b": _good("b", "RKI__b.tsv", license_id="")}
+    monkeypatch.setattr(deploy_registry, "_load_registry", lambda: (DEFAULTS, entries))
+    apply = MagicMock()
+    monkeypatch.setattr(deploy_registry, "_deploy_dataset", apply)
+    monkeypatch.setenv("PREFECT_API_URL", "https://prefect.example/api")
+
+    with pytest.raises(ValueError, match="Dataset 'b': license_id is required"):
+        deploy_registry.deploy_from_registry()
+    apply.assert_not_called()
+
+
+def test_deploy_preserves_enabled_and_explicit_selection(monkeypatch):
+    entries = {"a": _good("a", "RKI__a.tsv"), "b": _good("b", "RKI__b.tsv", enabled=False)}
+    monkeypatch.setattr(deploy_registry, "_load_registry", lambda: (DEFAULTS, entries))
+    apply = MagicMock()
+    monkeypatch.setattr(deploy_registry, "_deploy_dataset", apply)
+    monkeypatch.setenv("PREFECT_API_URL", "https://prefect.example/api")
+
+    deploy_registry.deploy_from_registry()
+    deploy_registry.deploy_from_registry("b")
+    assert [call.args[0] for call in apply.call_args_list] == ["download__a", "download__b"]
+
+
 def test_the_registry_follows_its_conventions():
     check_registry()
 
