@@ -66,13 +66,24 @@ def _insert_in_batches(cursor, sql: str, df, logger, batch_size: int | None = No
             logger.info("Inserted %d/%d rows", min(start + size, total), total)
 
 
+def _for_executemany(name: str) -> str:
+    """Escape ``%`` in a table or column name for a statement passed to ``executemany``.
+
+    pymysql %-formats every part of that statement, so a name such as
+    ``relative_humidity_2m (%)`` would otherwise fail with "not enough arguments for format
+    string". Statements run with ``execute`` and no arguments are not formatted and take the
+    plain name.
+    """
+    return name.replace("%", "%%")
+
+
 def _replace(cursor, df, table: str, logger) -> None:
     cols = ", ".join(f"`{col}` TEXT" for col in df.columns)
     cursor.execute(f"DROP TABLE IF EXISTS `{table}`")
     cursor.execute(f"CREATE TABLE `{table}` ({cols})")
     logger.info("Inserting %d rows into `%s`", len(df), table)
     placeholders = ", ".join(["%s"] * len(df.columns))
-    _insert_in_batches(cursor, f"INSERT INTO `{table}` VALUES ({placeholders})", df, logger)
+    _insert_in_batches(cursor, f"INSERT INTO `{_for_executemany(table)}` VALUES ({placeholders})", df, logger)
 
 
 def _upsert(cursor, df, table: str, primary_key: str, logger) -> None:
@@ -83,6 +94,10 @@ def _upsert(cursor, df, table: str, primary_key: str, logger) -> None:
     cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table}` ({cols})")
     logger.info("Upserting %d rows into `%s`", len(df), table)
     placeholders = ", ".join(["%s"] * len(df.columns))
-    updates = ", ".join(f"`{col}`=VALUES(`{col}`)" for col in df.columns if col != primary_key)
-    sql = f"INSERT INTO `{table}` VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}"
+    updates = ", ".join(
+        f"`{_for_executemany(col)}`=VALUES(`{_for_executemany(col)}`)"
+        for col in df.columns
+        if col != primary_key
+    )
+    sql = f"INSERT INTO `{_for_executemany(table)}` VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}"
     _insert_in_batches(cursor, sql, df, logger)
