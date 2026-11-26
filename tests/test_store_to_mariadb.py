@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from tasks.store_to_mariadb import store_to_mariadb, _to_rows
+from tasks.store_to_mariadb import store_to_mariadb, _replace, _to_rows, _upsert
 
 
 SAMPLE_DF = pd.DataFrame(
@@ -163,3 +163,34 @@ def test_nan_in_a_later_batch_still_becomes_none():
     last = cursor.executemany.call_args_list[-1].args[1]
     assert last == [(None,)]  # the last batch holds only the inf row
     assert cursor.executemany.call_args_list[1].args[1] == [(3.0,), (None,)]
+
+
+def _statement_as_pymysql_sends_it(sql: str) -> str:
+    """Apply pymysql's own executemany parsing to sql and return the prefix + postfix it sends."""
+    from pymysql.cursors import RE_INSERT_VALUES
+
+    match = RE_INSERT_VALUES.match(sql)
+    assert match, sql
+    return (match.group(1) % ()) + (match.group(3) or "") % ()
+
+
+def test_upsert_handles_percent_in_column_names():
+    """A column such as 'relative_humidity_2m (%)' must survive pymysql's %-formatting unchanged."""
+    df = pd.DataFrame({"time": ["2026-11-23T00:00"], "relative_humidity_2m (%)": [78]})
+    cursor = MagicMock()
+    _upsert(cursor, df, "weather", "time", MagicMock())
+
+    create_sql = cursor.execute.call_args.args[0]
+    assert "`relative_humidity_2m (%)` TEXT" in create_sql
+    sent = _statement_as_pymysql_sends_it(cursor.executemany.call_args.args[0])
+    assert "`relative_humidity_2m (%)`=VALUES(`relative_humidity_2m (%)`)" in sent
+
+
+def test_replace_handles_percent_in_table_name():
+    """The INSERT of a full replace is %-formatted by pymysql as well; the table name must survive it."""
+    df = pd.DataFrame({"a": [1]})
+    cursor = MagicMock()
+    _replace(cursor, df, "share_%", MagicMock())
+
+    sent = _statement_as_pymysql_sends_it(cursor.executemany.call_args.args[0])
+    assert "INSERT INTO `share_%` VALUES" in sent
